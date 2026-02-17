@@ -1,7 +1,7 @@
-setuptools
 fastapi
 uvicorn
 pandas
 matplotlib
 python-multipart
 jinja2
+setuptools
