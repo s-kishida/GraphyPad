@@ -92,16 +92,6 @@ with st.sidebar:
             x_axis = None
             y_axes = st.multiselect("Data (対象の列: 複数選択可)", df.columns, default=df.columns.tolist()[:3])
         
-        st.divider()
-        st.header("Data Calculation")
-        with st.expander("列を計算して追加"):
-            col_a = st.selectbox("対象の列", df.columns, key="calc_col")
-            factor = st.number_input("倍率", value=1.0, format="%.4f")
-            new_col = st.text_input("新しい列の名前", value=f"{col_a}_calc")
-            if st.button("Calculate & Add"):
-                df[new_col] = df[col_a] * factor
-                st.toast(f"Added {new_col}")
-                st.rerun()
 
         st.divider()
         st.header("Label Settings")
@@ -269,9 +259,8 @@ else:
     ### 🚀 使い方
     1. **CSVファイルをアップロード**: 左側のパネルからデータを選択します。
     2. **グラフの種類を選択**: 折れ線グラフ、棒グラフ、ヒストグラムなどから選べます。
-    3. **データ加工**: 「Data Calculation」で単位変換などが可能です。
-    4. **見た目の調整**: フォントサイズや線の太さを自分好みに調整できます。
-    5. **ダウンロード**: 「📁 画像をダウンロード」でレポートに貼れるPNGを保存できます。
+    3. **見た目の調整**: フォントサイズや線の太さを自分好みに調整できます。
+    4. **ダウンロード**: 「📁 画像をダウンロード」でレポートに貼れるPNGを保存できます。
     """)
     
     # サンプルデータ作成・DL機能
