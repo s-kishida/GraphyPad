@@ -1,41 +1,44 @@
 import os
+# Vercelなどの書き込み制限がある環境でMatplotlibを動かすための設定
+os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
 import io
 import json
 import base64
 import pandas as pd
 import matplotlib
-matplotlib.use('Agg') # サーバー環境でのクラッシュを防ぐために必須
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from typing import Optional
 
 app = FastAPI()
 
-# Determine the base path (for Vercel environment)
-# __file__ は現在のスクリプトのパスを示す
-# os.path.abspath(__file__) で絶対パスを取得
-# os.path.dirname(...) でディレクトリ名を取得
-# BASE_DIR はプロジェクトのルートディレクトリを指すように調整
+# プロジェクトのルートディレクトリを特定
+# Vercelではカレントディレクトリがルートになる
+CURRENT_DIR = os.getcwd()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# もしスクリプトがサブディレクトリにある場合、親ディレクトリをプロジェクトルートとする
-# 例: /api/index.py の場合、BASE_DIR は /api になるので、その親ディレクトリ / をプロジェクトルートとする
-if os.path.basename(BASE_DIR) == "api": # VercelのFunctionsの慣習に合わせて調整
-    BASE_DIR = os.path.dirname(BASE_DIR)
+
+# 複数の候補から static フォルダを探す
+static_candidates = [
+    os.path.join(CURRENT_DIR, "static"),
+    os.path.join(os.path.dirname(BASE_DIR), "static"),
+    "/var/task/static"
+]
+
+STATIC_DIR = None
+for candidate in static_candidates:
+    if os.path.exists(os.path.join(candidate, "index.html")):
+        STATIC_DIR = candidate
+        break
+
+if STATIC_DIR:
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 UPLOAD_DIR = "/tmp/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# Static files mapping
-# Vercelではカレントディレクトリがルートになることもあるため、複数の候補をチェック
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-if not os.path.exists(STATIC_DIR):
-    STATIC_DIR = os.path.join(os.getcwd(), "static")
-
-if os.path.exists(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 def read_csv_with_fallback(file_path):
     try:
@@ -47,6 +50,8 @@ def read_csv_with_fallback(file_path):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index():
+    if not STATIC_DIR:
+        return "Error: Static directory not found."
     index_path = os.path.join(STATIC_DIR, "index.html")
     with open(index_path, "r", encoding="utf-8") as f:
         return f.read()
