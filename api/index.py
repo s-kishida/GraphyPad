@@ -3,6 +3,8 @@ import io
 import json
 import base64
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg') # サーバー環境でのクラッシュを防ぐために必須
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -13,14 +15,27 @@ from typing import Optional
 app = FastAPI()
 
 # Determine the base path (for Vercel environment)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# In serverless, we can only write to /tmp
+# __file__ は現在のスクリプトのパスを示す
+# os.path.abspath(__file__) で絶対パスを取得
+# os.path.dirname(...) でディレクトリ名を取得
+# BASE_DIR はプロジェクトのルートディレクトリを指すように調整
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# もしスクリプトがサブディレクトリにある場合、親ディレクトリをプロジェクトルートとする
+# 例: /api/index.py の場合、BASE_DIR は /api になるので、その親ディレクトリ / をプロジェクトルートとする
+if os.path.basename(BASE_DIR) == "api": # VercelのFunctionsの慣習に合わせて調整
+    BASE_DIR = os.path.dirname(BASE_DIR)
+
 UPLOAD_DIR = "/tmp/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Static files mapping
+# Vercelではカレントディレクトリがルートになることもあるため、複数の候補をチェック
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+if not os.path.exists(STATIC_DIR):
+    STATIC_DIR = os.path.join(os.getcwd(), "static")
+
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 def read_csv_with_fallback(file_path):
     try:
