@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import japanize_matplotlib
 import io
 import json
+import numpy as np
 
 # --- デザイン：以前のカスタムCSSをStreamlitに注入 ---
 def local_css():
@@ -158,7 +159,6 @@ if df is not None:
                     code_snippets.append(f"plt.scatter(df['{x_axis}'], df['{col}'], s={marker_size*10}, label='{col}', alpha=0.7)")
             
             elif chart_type == "棒グラフ":
-                import numpy as np
                 x = np.arange(len(df[x_axis]))
                 width = 0.8 / len(y_axes)
                 for i, col in enumerate(y_axes):
@@ -166,7 +166,7 @@ if df is not None:
                     code_snippets.append(f"plt.bar(x + ({i} - {len(y_axes)}/2 + 0.5) * {width}, df['{col}'], {width}, label='{col}')")
                 ax.set_xticks(x)
                 ax.set_xticklabels(df[x_axis])
-                code_snippets.insert(0, "import numpy as np\nx = np.arange(len(df['" + x_axis + "']))\nwidth = 0.8 / " + str(len(y_axes)))
+                code_snippets.insert(0, f"import numpy as np\nx = np.arange(len(df['{x_axis}']))\nwidth = 0.8 / {len(y_axes)}")
 
             elif chart_type == "ヒストグラム":
                 ax.hist([df[col].dropna() for col in y_axes], bins=20, label=y_axes, alpha=0.7)
@@ -265,11 +265,40 @@ else:
     
     # サンプルデータ作成・DL機能
     st.divider()
-    sample_df = pd.DataFrame({
-        "科目": ["国語", "数学", "英語", "理科", "社会"],
-        "クラスA": [75, 82, 90, 68, 72],
-        "クラスB": [80, 70, 85, 92, 65],
-        "出席番号": [1, 2, 3, 4, 5]
-    })
-    st.write("サンプルデータで試すにはこちらをダウンロード:")
-    st.download_button("サンプルCSVをダウンロード", sample_df.to_csv(index=False).encode('utf-8-sig'), "sample_grades.csv", "text/csv")
+    st.subheader("💡 サンプルデータで試す")
+    st.markdown("グラフの種類に合わせたサンプルCSVをダウンロードして、使い心地を確認できます。")
+    
+    col_s1, col_s2, col_s3 = st.columns(3)
+    
+    with col_s1:
+        st.write("**実験・変化データ**")
+        st.caption("折れ線グラフ・散布図向き")
+        exp_df = pd.DataFrame({
+            "時間(s)": [0, 10, 20, 30, 40, 50, 60],
+            "温度A(℃)": [20.1, 25.4, 32.8, 41.2, 48.5, 53.2, 58.1],
+            "温度B(℃)": [19.8, 22.1, 26.5, 30.2, 33.8, 38.1, 42.4]
+        })
+        st.download_button("🌡️ 実験データのDL", exp_df.to_csv(index=False).encode('utf-8-sig'), "sample_experiment.csv", "text/csv")
+
+    with col_s2:
+        st.write("**分類・割合データ**")
+        st.caption("棒グラフ・円グラフ向き")
+        cat_df = pd.DataFrame({
+            "項目": ["食費", "光熱費", "通信費", "遊び", "その他"],
+            "クラスA(%)": [35, 15, 10, 25, 15],
+            "クラスB(%)": [30, 20, 15, 20, 15]
+        })
+        st.download_button("📊 分類データのDL", cat_df.to_csv(index=False).encode('utf-8-sig'), "sample_category.csv", "text/csv")
+
+    with col_s3:
+        st.write("**分布・統計データ**")
+        st.caption("ヒスト（箱・バイオリン）向き")
+        # 統計用のダミーデータ生成
+        import numpy as np
+        np.random.seed(42)
+        stat_df = pd.DataFrame({
+            "グループ1": np.random.normal(70, 10, 100),
+            "グループ2": np.random.normal(60, 15, 100),
+            "グループ3": np.random.normal(80, 5, 100)
+        }).round(1)
+        st.download_button("📈 統計データのDL", stat_df.to_csv(index=False).encode('utf-8-sig'), "sample_stats.csv", "text/csv")
