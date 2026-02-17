@@ -1,8 +1,5 @@
-fastapi
-uvicorn
+streamlit
 pandas
 matplotlib
 japanize-matplotlib
-python-multipart
-jinja2
 setuptools
