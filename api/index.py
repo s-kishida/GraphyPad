@@ -1,16 +1,17 @@
 import os
 import sys
+from pathlib import Path
 
-# DEPLOYMENT_VERSION: 1.0.2
-print("Initializing GraphyPad on Vercel...")
-
-# 1. Matplotlib setup (must be before any other mpl imports)
+# --- VERCEL BOOT GUARD ---
+# Matplotlibのキャッシュ先を /tmp に設定
 os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
+os.environ['PYTHONPATH'] = os.path.dirname(os.path.abspath(__file__))
+
+print(">>> Vercel App Loading... Python version:", sys.version)
 
 import io
 import json
 import base64
-from pathlib import Path
 from typing import Optional
 
 try:
@@ -18,12 +19,8 @@ try:
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    try:
-        import japanize_matplotlib
-    except:
-        pass
 except Exception as e:
-    print(f"Base Library Import Error: {e}")
+    print(f">>> Critical Library Error: {e}")
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -31,11 +28,12 @@ from fastapi.responses import HTMLResponse
 
 app = FastAPI()
 
-# Path settings
+# パス設定の強化
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 UPLOAD_DIR = Path("/tmp/uploads")
 
+# 静的ファイルの公開設定
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -53,8 +51,11 @@ def ensure_upload_dir():
 async def read_index():
     index_file = STATIC_DIR / "index.html"
     if not index_file.exists():
-        return HTMLResponse(content=f"<h1>Error: Static files not found at {STATIC_DIR}</h1>", status_code=404)
-    return index_file.read_text(encoding="utf-8")
+        index_file = Path(os.getcwd()) / "static" / "index.html"
+    
+    if index_file.exists():
+        return index_file.read_text(encoding="utf-8")
+    return HTMLResponse(content=f"<h1>Error: Static folder not found at {STATIC_DIR}</h1>", status_code=404)
 
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
@@ -88,6 +89,12 @@ async def generate_graph(
     x_min: Optional[float] = Form(None),
     x_max: Optional[float] = Form(None)
 ):
+    # 日本語ライブラリを「実行時」にインポート（起動エラーを完全に防ぐ）
+    try:
+        import japanize_matplotlib
+    except:
+        pass
+
     file_path = UPLOAD_DIR / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -119,7 +126,7 @@ async def generate_graph(
         buf.seek(0)
         img_str = base64.b64encode(buf.read()).decode('utf-8')
         
-        return {"image": f"data:image/png;base64,{img_str}", "code": "# Preview code will be here"}
+        return {"image": f"data:image/png;base64,{img_str}", "code": "# ..."}
     except Exception as e:
         plt.close()
         raise HTTPException(status_code=500, detail=str(e))
