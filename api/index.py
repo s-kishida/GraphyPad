@@ -1,7 +1,6 @@
 import os
-import sys
-
-# 1. Matplotlibの書き込み先設定（インポートより前に必須）
+# --- Vercel/Serverless 環境向けの最強ガード ---
+# Matplotlibの初期化前に設定。書き込み可能な /tmp を使用。
 os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
 
 import io
@@ -10,26 +9,13 @@ import base64
 from pathlib import Path
 from typing import Optional
 
-# 2. 必須ライブラリのインポート
 try:
     import pandas as pd
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 except Exception as e:
-    print(f"CRITICAL ERROR: Failed to import base libraries: {e}")
-
-# 3. 日本語化ライブラリ（Python 3.12+ の distutils 対策）
-try:
-    # 互換性のためのハック
-    try:
-        import setuptools 
-    except ImportError:
-        pass
-    import japanize_matplotlib
-except Exception as e:
-    # ここでエラーになっても、本体の起動は邪魔しない
-    print(f"WARNING: japanize_matplotlib failed to load (Japanese support might be limited): {e}")
+    print(f"Base Library Import Error: {e}")
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -37,7 +23,7 @@ from fastapi.responses import HTMLResponse
 
 app = FastAPI()
 
-# パス設定の強化
+# パス設定（本番と開発の両方に対応）
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 UPLOAD_DIR = Path("/tmp/uploads")
@@ -59,7 +45,10 @@ def ensure_upload_dir():
 async def read_index():
     index_file = STATIC_DIR / "index.html"
     if not index_file.exists():
-        return HTMLResponse(content="<h1>Error: static/index.html not found</h1>", status_code=404)
+        # 代替手段としてカレントディレクトリからの相対パスも試す
+        index_file = Path(os.getcwd()) / "static" / "index.html"
+        if not index_file.exists():
+            return HTMLResponse(content="<h1>Error: static/index.html not found</h1>", status_code=404)
     return index_file.read_text(encoding="utf-8")
 
 @app.post("/upload")
@@ -94,12 +83,20 @@ async def generate_graph(
     x_min: Optional[float] = Form(None),
     x_max: Optional[float] = Form(None)
 ):
+    # 日本語フォント設定（実行時に読み込むことで起動エラーを完全に防ぐ）
+    try:
+        import japanize_matplotlib
+    except Exception as e:
+        print(f"Language Pack Error: {e}")
+
     file_path = UPLOAD_DIR / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
+    
     try:
         df = read_csv_with_fallback(file_path)
         y_cols = json.loads(y_axis_list)
+        
         plt.figure(figsize=(width, height), facecolor='white')
         ax = plt.axes()
         for col in y_cols:
@@ -122,7 +119,8 @@ async def generate_graph(
         plt.close()
         buf.seek(0)
         img_str = base64.b64encode(buf.read()).decode('utf-8')
-        return {"image": f"data:image/png;base64,{img_str}", "code": "# ..."}
+        
+        return {"image": f"data:image/png;base64,{img_str}", "code": "# Code Preview Update..."}
     except Exception as e:
         plt.close()
         raise HTTPException(status_code=500, detail=str(e))
