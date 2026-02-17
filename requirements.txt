@@ -1,3 +1,4 @@
+setuptools
 fastapi
 uvicorn
 pandas
@@ -5,4 +6,3 @@ matplotlib
 japanize-matplotlib
 python-multipart
 jinja2
-setuptools
