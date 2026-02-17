@@ -1,74 +1,73 @@
 import os
-# Vercelなどの書き込み制限がある環境でMatplotlibを動かすための設定
+
+# --- Vercel環境用の特殊設定 ---
+# 1. Matplotlibの書き込み先を/tmpに指定（必須）
 os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
+
 import io
 import json
 import base64
+from pathlib import Path
+from typing import Optional
+
 import pandas as pd
 import matplotlib
+# 2. 画面がない環境で動くように設定（必須）
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import japanize_matplotlib
+
+# 3. 日本語対応（失敗しても起動だけはするようにガード）
+try:
+    import japanize_matplotlib
+except ImportError:
+    print("japanize_matplotlib could not be imported")
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from typing import Optional
 
 app = FastAPI()
 
-# プロジェクトのルートディレクトリを特定
-# Vercelではカレントディレクトリがルートになる
-CURRENT_DIR = os.getcwd()
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# パスの設定
+# api/index.py から見て親ディレクトリがルート
+BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = BASE_DIR / "static"
+UPLOAD_DIR = Path("/tmp/uploads")
 
-# 複数の候補から static フォルダを探す
-static_candidates = [
-    os.path.join(CURRENT_DIR, "static"),
-    os.path.join(os.path.dirname(BASE_DIR), "static"),
-    "/var/task/static"
-]
-
-STATIC_DIR = None
-for candidate in static_candidates:
-    if os.path.exists(os.path.join(candidate, "index.html")):
-        STATIC_DIR = candidate
-        break
-
-if STATIC_DIR:
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-UPLOAD_DIR = "/tmp/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# 静的ファイルの提供（フォルダが存在する場合のみ）
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 def read_csv_with_fallback(file_path):
     try:
         return pd.read_csv(file_path)
     except UnicodeDecodeError:
         return pd.read_csv(file_path, encoding='shift-jis')
-    except Exception as e:
-        raise e
+
+def ensure_upload_dir():
+    if not UPLOAD_DIR.exists():
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index():
-    if not STATIC_DIR:
-        return "Error: Static directory not found."
-    index_path = os.path.join(STATIC_DIR, "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return f.read()
+    index_file = STATIC_DIR / "index.html"
+    if not index_file.exists():
+        return HTMLResponse(content="<h1>Error: static/index.html not found</h1>", status_code=404)
+    return index_file.read_text(encoding="utf-8")
 
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.lower().endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed.")
     
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    ensure_upload_dir()
+    file_path = UPLOAD_DIR / file.filename
     with open(file_path, "wb") as f:
         f.write(await file.read())
     
     try:
         df = read_csv_with_fallback(file_path)
-        columns = df.columns.tolist()
-        return {"filename": file.filename, "columns": columns}
+        return {"filename": file.filename, "columns": df.columns.tolist()}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading CSV: {str(e)}")
 
@@ -79,8 +78,8 @@ async def calculate_column(
     col_a: str = Form(...),
     factor: float = Form(...)
 ):
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    if not os.path.exists(file_path):
+    file_path = UPLOAD_DIR / filename
+    if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     
     try:
@@ -95,7 +94,7 @@ async def calculate_column(
 async def generate_graph(
     filename: str = Form(...),
     x_axis: str = Form(...),
-    y_axis_list: str = Form(...), # JSON string of list
+    y_axis_list: str = Form(...),
     x_name: Optional[str] = Form(""),
     x_unit: Optional[str] = Form(""),
     y_name: Optional[str] = Form(""),
@@ -112,24 +111,21 @@ async def generate_graph(
     marker_size: float = Form(8.0),
     line_width: float = Form(3.0)
 ):
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    if not os.path.exists(file_path):
+    file_path = UPLOAD_DIR / filename
+    if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     
     try:
         df = read_csv_with_fallback(file_path)
         y_cols = json.loads(y_axis_list)
         
-        # Plotting
         plt.figure(figsize=(width, height), facecolor='white')
         ax = plt.axes()
         ax.set_facecolor('white')
         
-        # Plot data for each Y column
         for col in y_cols:
             plt.plot(df[x_axis], df[col], marker='o', linewidth=line_width, markersize=marker_size, label=col)
         
-        # Helper to format label
         def format_label(name, unit, default):
             if not name and not unit: return default
             if name and unit: return f"{name} ({unit})"
@@ -138,7 +134,6 @@ async def generate_graph(
         x_label_final = format_label(x_name, x_unit, x_axis)
         y_label_final = format_label(y_name, y_unit, y_cols[0] if len(y_cols) == 1 else "")
 
-        # Labels and Style
         plt.xlabel(x_label_final, color='black', fontsize=font_label)
         plt.ylabel(y_label_final, color='black', fontsize=font_label)
         plt.title(title if title else (f"{y_cols[0]} vs {x_axis}" if len(y_cols) == 1 else "複数データの比較"), color='black', fontsize=font_title, pad=20)
@@ -146,59 +141,29 @@ async def generate_graph(
         if len(y_cols) > 1:
             plt.legend()
 
-        # Axis colors
         ax.spines['bottom'].set_color('black')
         ax.spines['top'].set_color('black')
         ax.spines['left'].set_color('black')
         ax.spines['right'].set_color('black')
         ax.tick_params(axis='x', colors='black', labelsize=font_tick)
         ax.tick_params(axis='y', colors='black', labelsize=font_tick)
-        
-        # Grid
         plt.grid(True, linestyle='--', alpha=0.3, color='gray')
         
-        # Custom limits
         if x_min is not None and x_max is not None:
              plt.xlim(x_min, x_max)
         
-        # Generate Python Code String
         y_plots_code = "\n".join([f"plt.plot(df['{x_axis}'], df['{col}'], marker='o', linewidth={line_width}, markersize={marker_size}, label='{col}')" for col in y_cols])
         legend_code = "plt.legend()" if len(y_cols) > 1 else ""
         
-        code = f"""import matplotlib.pyplot as plt
-import japanize_matplotlib
-import pandas as pd
+        code = f"""import matplotlib.pyplot as plt\nimport japanize_matplotlib\nimport pandas as pd\n\ndf = pd.read_csv('{filename}')\nplt.figure(figsize=({width}, {height}))\n{y_plots_code}\n{legend_code}\nplt.xlabel('{x_label_final}', fontsize={font_label})\nplt.ylabel('{y_label_final}', fontsize={font_label})\nplt.title('{title if title else "複数データの比較"}', fontsize={font_title})\nplt.tick_params(labelsize={font_tick})\nplt.grid(True)\nplt.show()"""
 
-# データを読み込む
-df = pd.read_csv('{filename}')
-
-# グラフの設定
-plt.figure(figsize=({width}, {height}))
-{y_plots_code}
-{legend_code}
-
-# ラベルとタイトルの設定
-plt.xlabel('{x_label_final}', fontsize={font_label})
-plt.ylabel('{y_label_final}', fontsize={font_label})
-plt.title('{title if title else (f"{y_cols[0]} vs {x_axis}" if len(y_cols) == 1 else "複数データの比較")}', fontsize={font_title})
-plt.tick_params(labelsize={font_tick})
-plt.grid(True)
-
-# 表示
-plt.show()"""
-
-        # Save to buffer
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=100)
         plt.close()
         buf.seek(0)
-        
         img_str = base64.b64encode(buf.read()).decode('utf-8')
         
-        return {
-            "image": f"data:image/png;base64,{img_str}",
-            "code": code
-        }
+        return {"image": f"data:image/png;base64,{img_str}", "code": code}
     except Exception as e:
         plt.close()
         raise HTTPException(status_code=500, detail=str(e))
