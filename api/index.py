@@ -1,7 +1,9 @@
 import os
+import sys
 
 # --- Vercel環境用の特殊設定 ---
 # 1. Matplotlibの書き込み先を/tmpに指定（必須）
+# インポートより先に設定する必要がある
 os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
 
 import io
@@ -10,17 +12,18 @@ import base64
 from pathlib import Path
 from typing import Optional
 
-import pandas as pd
-import matplotlib
-# 2. 画面がない環境で動くように設定（必須）
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
-# 3. 日本語対応（失敗しても起動だけはするようにガード）
 try:
+    import pandas as pd
+    import matplotlib
+    # 2. 画面がない環境で動くように設定（必須）
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    
+    # 3. 日本語対応
     import japanize_matplotlib
-except ImportError:
-    print("japanize_matplotlib could not be imported")
+except Exception as e:
+    print(f"Startup Import Error: {str(e)}")
+    # クラッシュさせずに続行を試みる（または後のエラーで詳細を出す）
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
