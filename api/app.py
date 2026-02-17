@@ -18,6 +18,10 @@ try:
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+    try:
+        import japanize_matplotlib
+    except:
+        pass
 except Exception as e:
     print(f"Base Library Import Error: {e}")
 
