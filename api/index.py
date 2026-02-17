@@ -1,6 +1,10 @@
 import os
-# --- Vercel/Serverless 環境向けの最強ガード ---
-# Matplotlibの初期化前に設定。書き込み可能な /tmp を使用。
+import sys
+
+# DEPLOYMENT_VERSION: 1.0.2
+print("Initializing GraphyPad on Vercel...")
+
+# 1. Matplotlib setup (must be before any other mpl imports)
 os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'
 
 import io
@@ -23,7 +27,7 @@ from fastapi.responses import HTMLResponse
 
 app = FastAPI()
 
-# パス設定（本番と開発の両方に対応）
+# Path settings
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 UPLOAD_DIR = Path("/tmp/uploads")
@@ -45,10 +49,7 @@ def ensure_upload_dir():
 async def read_index():
     index_file = STATIC_DIR / "index.html"
     if not index_file.exists():
-        # 代替手段としてカレントディレクトリからの相対パスも試す
-        index_file = Path(os.getcwd()) / "static" / "index.html"
-        if not index_file.exists():
-            return HTMLResponse(content="<h1>Error: static/index.html not found</h1>", status_code=404)
+        return HTMLResponse(content=f"<h1>Error: Static files not found at {STATIC_DIR}</h1>", status_code=404)
     return index_file.read_text(encoding="utf-8")
 
 @app.post("/upload")
@@ -83,12 +84,6 @@ async def generate_graph(
     x_min: Optional[float] = Form(None),
     x_max: Optional[float] = Form(None)
 ):
-    # 日本語フォント設定（実行時に読み込むことで起動エラーを完全に防ぐ）
-    try:
-        import japanize_matplotlib
-    except Exception as e:
-        print(f"Language Pack Error: {e}")
-
     file_path = UPLOAD_DIR / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -120,7 +115,7 @@ async def generate_graph(
         buf.seek(0)
         img_str = base64.b64encode(buf.read()).decode('utf-8')
         
-        return {"image": f"data:image/png;base64,{img_str}", "code": "# Code Preview Update..."}
+        return {"image": f"data:image/png;base64,{img_str}", "code": "# Preview code will be here"}
     except Exception as e:
         plt.close()
         raise HTTPException(status_code=500, detail=str(e))
