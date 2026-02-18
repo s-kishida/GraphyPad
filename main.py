@@ -277,6 +277,11 @@ if df is not None:
         
         code_snippets = []
         
+        # ラベル整形用関数
+        def fmt(n, u):
+            if n and u: return f"{n} ({u})"
+            return n if n else (f"({u})" if u else "")
+        
         try:
             if chart_type in ["折れ線グラフ", "散布図", "棒グラフ", "複合グラフ"]:
                 bar_cols = [c for c, t in y_configs.items() if t == "Bar"]
@@ -353,10 +358,6 @@ if df is not None:
                 ax.set_xticklabels(y_axes)
                 code_snippets.append(f"ax.violinplot([df[col].dropna() for col in {y_axes}], showmeans=True)")
 
-            # ラベル整形
-            def fmt(n, u):
-                if n and u: return f"{n} ({u})"
-                return n if n else (f"({u})" if u else "")
 
             if chart_type != "円グラフ":
                 ax.set_xlabel(fmt(x_name, x_unit) or (x_axis if x_axis else ""), fontsize=font_label, color='black')
