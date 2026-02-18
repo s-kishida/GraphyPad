@@ -150,8 +150,18 @@ if df is not None:
         })
         st.table(info_df)
         
-        st.subheader("データの数値参照")
-        st.dataframe(df, use_container_width=True)
+        st.subheader("データの数値参照 (50行ずつ表示)")
+        total_rows = len(df)
+        if total_rows > 50:
+            page_size = 50
+            num_pages = (total_rows - 1) // page_size + 1
+            page_num = st.slider("表示する行の範囲を選択", 1, num_pages, 1)
+            start_idx = (page_num - 1) * page_size
+            end_idx = min(start_idx + page_size, total_rows)
+            st.caption(f"{total_rows}行中 {start_idx + 1} 〜 {end_idx} 行目を表示しています")
+            st.dataframe(df.iloc[start_idx:end_idx], use_container_width=True)
+        else:
+            st.dataframe(df, use_container_width=True)
     
     if not y_axes:
         st.info("👈 サイドバーで描画するデータを選択してください。")
