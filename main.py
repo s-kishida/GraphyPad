@@ -174,16 +174,6 @@ if df is not None:
             if "page_num" not in st.session_state:
                 st.session_state.page_num = 1
             
-            # --- Googleロゴの動的生成 ---
-            logo_html = "<div style='text-align: center; font-family: serif; font-size: 48px; font-weight: bold; margin: 10px 0 0 0; line-height: 1;'>"
-            logo_html += "<span style='color: white;'>G</span>"
-            for i in range(1, num_pages + 1):
-                # 現在のページは青、それ以外は白（またはGoogleカラーも可ですが画像に合わせて白主体で）
-                o_color = "#4285F4" if i == st.session_state.page_num else "white"
-                logo_html += f"<span style='color: {o_color};'>o</span>"
-            logo_html += "<span style='color: white;'>gle</span></div>"
-            st.markdown(logo_html, unsafe_allow_html=True)
-            
             # --- ページ番号と「次へ」の配置 ---
             cols_spec = [1] * num_pages + [2, 10]
             p_cols = st.columns(cols_spec)
