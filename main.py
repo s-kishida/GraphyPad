@@ -107,7 +107,7 @@ with st.sidebar:
                 with st.expander("Series Settings (個別の設定)", expanded=True):
                     for i, col in enumerate(y_axes):
                         st.write(f"**{col}**")
-                        c_typ, c_col, c_siz = st.columns([2, 1, 1])
+                        c_typ, c_col, c_siz, c_leg = st.columns([2, 1, 1, 1])
                         
                         # プロットの種類
                         if chart_type == "複合グラフ":
@@ -124,7 +124,10 @@ with st.sidebar:
                         else:
                             p_size = c_siz.number_input("Size", 1.0, 50.0, 8.0 if p_type == "Scatter" else 3.0, key=f"size_{col}")
                         
-                        y_configs[col] = {"type": p_type, "color": p_color, "size": p_size}
+                        # 凡例表示
+                        p_leg = c_leg.checkbox("Legend", value=True, key=f"leg_{col}")
+                        
+                        y_configs[col] = {"type": p_type, "color": p_color, "size": p_size, "show_legend": p_leg}
 
             y_axis_mapping = {}
             axis_configs = {0: {"name": y_axes[0] if y_axes else "", "unit": "", "min": None, "max": None, "label_size": 18, "tick_size": 14}}
@@ -344,27 +347,28 @@ if df is not None:
                     p_type = conf["type"]
                     p_color = conf["color"]
                     p_size = conf["size"]
+                    p_label = col if conf["show_legend"] else "_nolegend_"
                     
                     a_idx = y_axis_mapping.get(col, 0)
                     target_ax = axes[a_idx]
                     ax_prefix = f"ax{a_idx}" if a_idx > 0 else "ax"
                     
                     if p_type == "Line":
-                        target_ax.plot(x_plot, df[col], marker='o', color=p_color, linewidth=p_size, markersize=p_size*2, label=col)
-                        code_snippets.append(f"{ax_prefix}.plot(x_plot, df['{col}'], marker='o', color='{p_color}', linewidth={p_size}, markersize={p_size*2}, label='{col}')")
+                        target_ax.plot(x_plot, df[col], marker='o', color=p_color, linewidth=p_size, markersize=p_size*2, label=p_label)
+                        code_snippets.append(f"{ax_prefix}.plot(x_plot, df['{col}'], marker='o', color='{p_color}', linewidth={p_size}, markersize={p_size*2}, label='{p_label}')")
                     elif p_type == "Scatter":
-                        target_ax.scatter(x_plot, df[col], s=p_size*10, color=p_color, label=col, alpha=0.7)
-                        code_snippets.append(f"{ax_prefix}.scatter(x_plot, df['{col}'], s={p_size*10}, color='{p_color}', label='{col}', alpha=0.7)")
+                        target_ax.scatter(x_plot, df[col], s=p_size*10, color=p_color, label=p_label, alpha=0.7)
+                        code_snippets.append(f"{ax_prefix}.scatter(x_plot, df['{col}'], s={p_size*10}, color='{p_color}', label='{p_label}', alpha=0.7)")
                     elif p_type == "Bar":
                         current_width = width * p_size
                         if len(bar_cols) > 0:
                             offset = (bar_count - len(bar_cols)/2 + 0.5) * width
-                            target_ax.bar(x_plot + offset, df[col], current_width, color=p_color, label=col)
-                            code_snippets.append(f"{ax_prefix}.bar(x_plot + {offset}, df['{col}'], {current_width}, color='{p_color}', label='{col}')")
+                            target_ax.bar(x_plot + offset, df[col], current_width, color=p_color, label=p_label)
+                            code_snippets.append(f"{ax_prefix}.bar(x_plot + {offset}, df['{col}'], {current_width}, color='{p_color}', label='{p_label}')")
                             bar_count += 1
                         else:
-                            target_ax.bar(x_plot, df[col], width=current_width, color=p_color, label=col)
-                            code_snippets.append(f"{ax_prefix}.bar(x_plot, df['{col}'], width={current_width}, color='{p_color}', label='{col}')")
+                            target_ax.bar(x_plot, df[col], width=current_width, color=p_color, label=p_label)
+                            code_snippets.append(f"{ax_prefix}.bar(x_plot, df['{col}'], width={current_width}, color='{p_color}', label='{p_label}')")
                 
                 if use_index_x:
                     ax.set_xticks(x_plot)
@@ -421,7 +425,14 @@ if df is not None:
             ax.set_title(chart_title, fontsize=font_title, color='black', pad=20)
             
             if len(y_axes) > 1 and chart_type not in ["円グラフ", "ヒストグラム"]:
-                ax.legend()
+                # 全ての軸から凡例情報を収集
+                h_all, l_all = [], []
+                for a_idx in sorted(axes.keys()):
+                    h, l = axes[a_idx].get_legend_handles_labels()
+                    h_all.extend(h)
+                    l_all.extend(l)
+                if h_all:
+                    ax.legend(h_all, l_all)
             elif chart_type == "ヒストグラム":
                 ax.legend()
                 
@@ -488,8 +499,22 @@ ax.set_title('{chart_title}', fontsize={font_title})
                 
                 full_code += f"ax.tick_params(labelsize={font_tick_global})\n"
                 
-                # グリッドと目盛のコード生成
-                if chart_type not in ["円グラフ", "ヒストグラム", "箱ひげ図", "バイオリンプロット"]:
+                # 凡例のコード生成
+                if len(y_axes) > 1 and chart_type not in ["円グラフ", "ヒストグラム"]:
+                    full_code += """
+# 全ての軸から凡例情報を収集
+lines_all, labels_all = [], []
+for i in range(6): # ax, ax1, ..., ax5 をチェック
+    ax_name = 'ax' if i == 0 else f'ax{i}'
+    if ax_name in locals():
+        target_ax = locals()[ax_name]
+        lns, lbs = target_ax.get_legend_handles_labels()
+        lines_all.extend(lns)
+        labels_all.extend(lbs)
+ax.legend(lines_all, labels_all)
+"""
+                elif chart_type == "ヒストグラム":
+                    full_code += "ax.legend()\n"
                     full_code += "from matplotlib.ticker import MultipleLocator\n"
                     if x_major_step: full_code += f"ax.xaxis.set_major_locator(MultipleLocator({x_major_step}))\n"
                     if x_minor_step: full_code += f"ax.xaxis.set_minor_locator(MultipleLocator({x_minor_step}))\n"
