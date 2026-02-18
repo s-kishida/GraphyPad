@@ -174,6 +174,7 @@ with st.sidebar:
         elif chart_type == "ヒストグラム":
             x_axis = None
             y_axes = st.multiselect("Data (対象の列: 複数選択可)", df.columns, default=[df.columns[0]])
+            hist_bins = st.number_input("Bins (階級数)", 1, 100, 20, step=1)
         else: # 箱ひげ図, バイオリンプロット
             x_axis = None
             y_axes = st.multiselect("Data (対象の列: 複数選択可)", df.columns, default=df.columns.tolist()[:3])
@@ -426,8 +427,8 @@ if df is not None:
 
             elif chart_type == "ヒストグラム":
                 axes = {0: ax}
-                ax.hist([df[col].dropna() for col in y_axes], bins=20, label=y_axes, alpha=0.7)
-                code_snippets.append(f"ax.hist([df[col].dropna() for col in {y_axes}], bins=20, label={y_axes}, alpha=0.7)")
+                ax.hist([df[col].dropna() for col in y_axes], bins=hist_bins, label=y_axes, alpha=0.7)
+                code_snippets.append(f"ax.hist([df[col].dropna() for col in {y_axes}], bins={hist_bins}, label={y_axes}, alpha=0.7)")
                 
             elif chart_type == "円グラフ":
                 axes = {0: ax}
