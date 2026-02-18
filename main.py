@@ -127,10 +127,31 @@ with st.sidebar:
                         y_configs[col] = {"type": p_type, "color": p_color, "size": p_size}
 
             y_axis_mapping = {}
+            axis_configs = {0: {"name": y_axes[0] if y_axes else "", "unit": "", "min": None, "max": None, "label_size": 18, "tick_size": 14}}
+            
             if y_axes and chart_type != "円グラフ":
-                with st.expander("Axis Settings (軸の割り当て)", expanded=False):
+                with st.expander("Axis Allocation & Settings (軸の設定)", expanded=False):
+                    active_ids = {0}
                     for col in y_axes:
                         y_axis_mapping[col] = st.number_input(f"Axis for {col} (0:左, 1:右, 2+:右オフセット)", 0, 5, 0, key=f"axis_{col}")
+                        active_ids.add(y_axis_mapping[col])
+                    
+                    st.divider()
+                    for idx in sorted(list(active_ids)):
+                        st.write(f"**Axis {idx} Config**")
+                        c_n, c_u = st.columns(2)
+                        a_name = c_n.text_input(f"Name", value=y_axes[0] if idx==0 and y_axes else "", key=f"aname_{idx}")
+                        a_unit = c_u.text_input(f"Unit", key=f"aunit_{idx}")
+                        
+                        c_mi, c_ma = st.columns(2)
+                        a_min = c_mi.number_input(f"Min", value=None, key=f"amin_{idx}")
+                        a_max = c_ma.number_input(f"Max", value=None, key=f"amax_{idx}")
+                        
+                        c_fl, c_ft = st.columns(2)
+                        a_font_l = c_fl.number_input(f"Label Size", 10, 40, 18, key=f"afont_l_{idx}")
+                        a_font_t = c_ft.number_input(f"Tick Size", 8, 30, 14, key=f"afont_t_{idx}")
+                        
+                        axis_configs[idx] = {"name": a_name, "unit": a_unit, "min": a_min, "max": a_max, "label_size": a_font_l, "tick_size": a_font_t}
             else:
                 for col in y_axes: y_axis_mapping[col] = 0
         elif chart_type == "円グラフ":
@@ -159,28 +180,13 @@ with st.sidebar:
         x_name = c1.text_input("X Name", value=x_axis if x_axis else "")
         x_unit = c2.text_input("X Unit", placeholder="s, m, etc.")
         
-        c3, c4 = st.columns(2)
-        y_name = c3.text_input("Y Name (Axis 0)", value=y_axes[0] if y_axes else "")
-        y_unit = c4.text_input("Y Unit (Axis 0)", placeholder="N, kg, etc.")
         
-        # 追加軸のラベル設定
-        used_axes = set(y_axis_mapping.values()) if y_axis_mapping else {0}
-        other_labels = {}
-        if any(idx > 0 for idx in used_axes):
-            with st.expander("Additional Axis Labels", expanded=False):
-                for idx in sorted(list(used_axes)):
-                    if idx == 0: continue
-                    la1, la2 = st.columns(2)
-                    other_labels[idx] = {
-                        "name": la1.text_input(f"Axis {idx} Name", value="", key=f"y_name_{idx}"),
-                        "unit": la2.text_input(f"Axis {idx} Unit", value="", key=f"y_unit_{idx}")
-                    }
-        
-        st.subheader("Font Sizes")
+        st.subheader("Global Font Sizes")
         f1, f2, f3 = st.columns(3)
-        font_title = f1.number_input("Title", 10, 50, 24)
-        font_label = f2.number_input("Label", 10, 40, 18)
-        font_tick = f3.number_input("Tick", 8, 30, 14)
+        font_title = f1.number_input("Title Size", 10, 50, 24)
+        # Label/Tick sizes are now primarily handled per-axis in Axis Settings
+        font_label_global = f2.number_input("Global Label Size", 10, 40, 18)
+        font_tick_global = f3.number_input("Global Tick Size", 8, 30, 14)
 
         # Global settings are now handled per-series
 
@@ -367,14 +373,27 @@ if df is not None:
                 
                 code_snippets.insert(0, f"import numpy as np\nx_plot = ... # values or arange\n")
 
-                # 各軸のラベル設定
+                # 各軸の個別設定を適用
                 for i, target_ax in axes.items():
-                    if i == 0:
-                        target_ax.set_ylabel(fmt(y_name, y_unit) or (y_axes[0] if len(y_axes)==1 else ""), fontsize=font_label, color='black')
-                    else:
-                        label_info = other_labels.get(i, {"name": "", "unit": ""})
-                        target_ax.set_ylabel(fmt(label_info["name"], label_info["unit"]), fontsize=font_label, color='black')
-                        code_snippets.append(f"ax{i}.set_ylabel('{fmt(label_info['name'], label_info['unit'])}', fontsize={font_label})")
+                    conf = axis_configs.get(i, {})
+                    a_name = conf.get("name", "")
+                    a_unit = conf.get("unit", "")
+                    a_min = conf.get("min")
+                    a_max = conf.get("max")
+                    a_label_fs = conf.get("label_size", font_label_global)
+                    a_tick_fs = conf.get("tick_size", font_tick_global)
+                    
+                    target_ax.set_ylabel(fmt(a_name, a_unit), fontsize=a_label_fs, color='black')
+                    target_ax.tick_params(axis='y', labelsize=a_tick_fs, colors='black')
+                    
+                    if a_min is not None: target_ax.set_ylim(bottom=a_min)
+                    if a_max is not None: target_ax.set_ylim(top=a_max)
+                    
+                    ax_prefix = f"ax{i}" if i > 0 else "ax"
+                    code_snippets.append(f"{ax_prefix}.set_ylabel('{fmt(a_name, a_unit)}', fontsize={a_label_fs})")
+                    code_snippets.append(f"{ax_prefix}.tick_params(axis='y', labelsize={a_tick_fs})")
+                    if a_min is not None: code_snippets.append(f"{ax_prefix}.set_ylim(bottom={a_min})")
+                    if a_max is not None: code_snippets.append(f"{ax_prefix}.set_ylim(top={a_max})")
 
             elif chart_type == "ヒストグラム":
                 ax.hist([df[col].dropna() for col in y_axes], bins=20, label=y_axes, alpha=0.7)
@@ -397,8 +416,7 @@ if df is not None:
 
 
             if chart_type != "円グラフ":
-                ax.set_xlabel(fmt(x_name, x_unit) or (x_axis if x_axis else ""), fontsize=font_label, color='black')
-                ax.set_ylabel(fmt(y_name, y_unit) or (y_axes[0] if len(y_axes)==1 else ""), fontsize=font_label, color='black')
+                ax.set_xlabel(fmt(x_name, x_unit) or (x_axis if x_axis else ""), fontsize=font_label_global, color='black')
             
             ax.set_title(chart_title, fontsize=font_title, color='black', pad=20)
             
@@ -407,7 +425,7 @@ if df is not None:
             elif chart_type == "ヒストグラム":
                 ax.legend()
                 
-            ax.tick_params(labelsize=font_tick, colors='black')
+            ax.tick_params(labelsize=font_tick_global, colors='black')
             
             # --- 目盛・グリッドの詳細設定適用 ---
             if chart_type not in ["円グラフ", "ヒストグラム", "箱ひげ図", "バイオリンプロット"]:
@@ -422,7 +440,7 @@ if df is not None:
                 if y_minor_step: ax.yaxis.set_minor_locator(MultipleLocator(y_minor_step))
                 
                 # 目盛自体の見た目調整
-                ax.tick_params(which='major', labelsize=font_tick, colors='black', length=6, direction=tick_dir)
+                ax.tick_params(which='major', labelsize=font_tick_global, colors='black', length=6, direction=tick_dir)
                 ax.tick_params(which='minor', colors='black', length=3, direction=tick_dir)
                 
                 # グリッド
@@ -466,10 +484,9 @@ fig, ax = plt.subplots(figsize=({width_val}, {height_val}))
 ax.set_title('{chart_title}', fontsize={font_title})
 """
                 if chart_type != "円グラフ":
-                    full_code += f"ax.set_xlabel('{fmt(x_name, x_unit)}', fontsize={font_label})\n"
-                    full_code += f"ax.set_ylabel('{fmt(y_name, y_unit)}', fontsize={font_label})\n"
+                    full_code += f"ax.set_xlabel('{fmt(x_name, x_unit)}', fontsize={font_label_global})\n"
                 
-                full_code += f"ax.tick_params(labelsize={font_tick})\n"
+                full_code += f"ax.tick_params(labelsize={font_tick_global})\n"
                 
                 # グリッドと目盛のコード生成
                 if chart_type not in ["円グラフ", "ヒストグラム", "箱ひげ図", "バイオリンプロット"]:
