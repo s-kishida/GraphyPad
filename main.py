@@ -295,11 +295,19 @@ if df is not None:
             
             # --- 目盛・グリッドの詳細設定適用 ---
             if chart_type not in ["円グラフ", "ヒストグラム", "箱ひげ図", "バイオリンプロット"]:
-                # 目盛間隔
+                # 先に補助目盛を有効化（後から呼ぶとLocatorがリセットされるため）
+                if x_minor_step or y_minor_step or grid_minor:
+                    ax.minorticks_on()
+                
+                # 目盛間隔の設定
                 if x_major_step: ax.xaxis.set_major_locator(MultipleLocator(x_major_step))
                 if x_minor_step: ax.xaxis.set_minor_locator(MultipleLocator(x_minor_step))
                 if y_major_step: ax.yaxis.set_major_locator(MultipleLocator(y_major_step))
                 if y_minor_step: ax.yaxis.set_minor_locator(MultipleLocator(y_minor_step))
+                
+                # 目盛自体の見た目調整（補助目盛が見えやすいように少し長くする）
+                ax.tick_params(which='major', labelsize=font_tick, colors='black', length=6)
+                ax.tick_params(which='minor', colors='black', length=3)
                 
                 # グリッド
                 if grid_major:
@@ -310,10 +318,6 @@ if df is not None:
                     ax.grid(True, which='minor', linestyle=':', alpha=0.2, color='gray')
                 else:
                     ax.grid(False, which='minor')
-                
-                # サブ目盛の線を表示（グリッドがなくても目盛線自体を出す場合のために）
-                if x_minor_step or y_minor_step or grid_minor:
-                    ax.minorticks_on()
 
             if chart_type in ["折れ線グラフ", "散布図"]:
                 if xmin_val is not None: ax.set_xlim(left=xmin_val)
