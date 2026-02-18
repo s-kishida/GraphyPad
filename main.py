@@ -284,18 +284,36 @@ if df is not None:
         
         try:
             if chart_type in ["折れ線グラフ", "散布図", "棒グラフ", "複合グラフ"]:
+                # X軸が数値かどうかを判定
+                is_numeric_x = pd.api.types.is_numeric_dtype(df[x_axis])
+                
+                # 座標の決定
+                if is_numeric_x and chart_type != "棒グラフ":
+                    # 実数値ベース（折れ線、散布図、または複合でXが数値の場合）
+                    x_plot = df[x_axis].values
+                    use_index_x = False
+                else:
+                    # カテゴリベース（棒グラフ単体、またはXが数値でない場合）
+                    x_plot = np.arange(len(df))
+                    use_index_x = True
+                
                 bar_cols = [c for c, t in y_configs.items() if t == "Bar"]
                 if bar_cols:
-                    x_indices = np.arange(len(df[x_axis]))
-                    width = 0.8 / len(bar_cols) if chart_type in ["棒グラフ", "複合グラフ"] else 0.8
-
+                    if not use_index_x and len(df) > 1:
+                        # 数値軸の場合、データの最小間隔に合わせて棒の幅を計算
+                        diffs = np.diff(np.sort(x_plot))
+                        min_diff = np.min(diffs[diffs > 0]) if any(diffs > 0) else 1.0
+                        total_width = min_diff * 0.8
+                    else:
+                        total_width = 0.8
+                    width = total_width / len(bar_cols)
+                
                 # 軸の初期化
                 axes = {0: ax}
                 max_axis_idx = max(y_axis_mapping.values()) if y_axis_mapping else 0
-                for i in range(1, max_axis_idx + 1):
+                for i in range(1, max_axis_idx+1):
                     new_ax = ax.twinx()
                     if i > 1:
-                        # 2つ目以降の右軸はオフセットさせる
                         new_ax.spines["right"].set_position(("axes", 1.0 + (i-1)*0.15))
                     axes[i] = new_ax
                     code_snippets.append(f"ax{i} = ax.twinx()")
@@ -310,25 +328,27 @@ if df is not None:
                     ax_prefix = f"ax{a_idx}" if a_idx > 0 else "ax"
                     
                     if p_type == "Line":
-                        target_ax.plot(df[x_axis], df[col], marker='o', linewidth=line_width, markersize=marker_size, label=col)
-                        code_snippets.append(f"{ax_prefix}.plot(df['{x_axis}'], df['{col}'], marker='o', linewidth={line_width}, markersize={marker_size}, label='{col}')")
+                        target_ax.plot(x_plot, df[col], marker='o', linewidth=line_width, markersize=marker_size, label=col)
+                        code_snippets.append(f"{ax_prefix}.plot(x_plot, df['{col}'], marker='o', linewidth={line_width}, markersize={marker_size}, label='{col}')")
                     elif p_type == "Scatter":
-                        target_ax.scatter(df[x_axis], df[col], s=marker_size*10, label=col, alpha=0.7)
-                        code_snippets.append(f"{ax_prefix}.scatter(df['{x_axis}'], df['{col}'], s={marker_size*10}, label='{col}', alpha=0.7)")
+                        target_ax.scatter(x_plot, df[col], s=marker_size*10, label=col, alpha=0.7)
+                        code_snippets.append(f"{ax_prefix}.scatter(x_plot, df['{col}'], s={marker_size*10}, label='{col}', alpha=0.7)")
                     elif p_type == "Bar":
-                        if chart_type in ["棒グラフ", "複合グラフ"] and len(bar_cols) > 0:
+                        if len(bar_cols) > 0:
                             offset = (bar_count - len(bar_cols)/2 + 0.5) * width
-                            target_ax.bar(x_indices + offset, df[col], width, label=col)
-                            code_snippets.append(f"{ax_prefix}.bar(x_indices + {offset}, df['{col}'], {width}, label='{col}')")
+                            target_ax.bar(x_plot + offset, df[col], width, label=col)
+                            code_snippets.append(f"{ax_prefix}.bar(x_plot + {offset}, df['{col}'], {width}, label='{col}')")
                             bar_count += 1
                         else:
-                            target_ax.bar(df[x_axis], df[col], label=col)
-                            code_snippets.append(f"{ax_prefix}.bar(df['{x_axis}'], df['{col}'], label='{col}')")
+                            target_ax.bar(x_plot, df[col], label=col)
+                            code_snippets.append(f"{ax_prefix}.bar(x_plot, df['{col}'], label='{col}')")
                 
-                if bar_cols:
-                    ax.set_xticks(x_indices)
+                if use_index_x:
+                    ax.set_xticks(x_plot)
                     ax.set_xticklabels(df[x_axis])
-                    code_snippets.insert(0, f"import numpy as np\nx_indices = np.arange(len(df['{x_axis}']))\nwidth = 0.8 / {len(bar_cols) if len(bar_cols)>0 else 1}")
+                    code_snippets.insert(0, f"ax.set_xticks(x_plot)\nax.set_xticklabels(df['{x_axis}'])")
+                
+                code_snippets.insert(0, f"import numpy as np\nx_plot = ... # values or arange\n")
 
                 # 各軸のラベル設定
                 for i, target_ax in axes.items():
