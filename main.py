@@ -221,41 +221,41 @@ if df is not None:
             if chart_type == "折れ線グラフ":
                 for col in y_axes:
                     ax.plot(df[x_axis], df[col], marker='o', linewidth=line_width, markersize=marker_size, label=col)
-                    code_snippets.append(f"plt.plot(df['{x_axis}'], df['{col}'], marker='o', linewidth={line_width}, markersize={marker_size}, label='{col}')")
+                    code_snippets.append(f"ax.plot(df['{x_axis}'], df['{col}'], marker='o', linewidth={line_width}, markersize={marker_size}, label='{col}')")
             
             elif chart_type == "散布図":
                 for col in y_axes:
                     ax.scatter(df[x_axis], df[col], s=marker_size*10, label=col, alpha=0.7)
-                    code_snippets.append(f"plt.scatter(df['{x_axis}'], df['{col}'], s={marker_size*10}, label='{col}', alpha=0.7)")
+                    code_snippets.append(f"ax.scatter(df['{x_axis}'], df['{col}'], s={marker_size*10}, label='{col}', alpha=0.7)")
             
             elif chart_type == "棒グラフ":
                 x = np.arange(len(df[x_axis]))
                 width = 0.8 / len(y_axes)
                 for i, col in enumerate(y_axes):
                     ax.bar(x + (i - len(y_axes)/2 + 0.5) * width, df[col], width, label=col)
-                    code_snippets.append(f"plt.bar(x + ({i} - {len(y_axes)}/2 + 0.5) * {width}, df['{col}'], {width}, label='{col}')")
+                    code_snippets.append(f"ax.bar(x + ({i} - {len(y_axes)}/2 + 0.5) * {width}, df['{col}'], {width}, label='{col}')")
                 ax.set_xticks(x)
                 ax.set_xticklabels(df[x_axis])
                 code_snippets.insert(0, f"import numpy as np\nx = np.arange(len(df['{x_axis}']))\nwidth = 0.8 / {len(y_axes)}")
 
             elif chart_type == "ヒストグラム":
                 ax.hist([df[col].dropna() for col in y_axes], bins=20, label=y_axes, alpha=0.7)
-                code_snippets.append(f"plt.hist([df[col].dropna() for col in {y_axes}], bins=20, label={y_axes}, alpha=0.7)")
+                code_snippets.append(f"ax.hist([df[col].dropna() for col in {y_axes}], bins=20, label={y_axes}, alpha=0.7)")
                 
             elif chart_type == "円グラフ":
                 val_col = y_axes[0]
                 ax.pie(df[val_col], labels=df[x_axis], autopct='%1.1f%%', startangle=90, counterclock=False)
-                code_snippets.append(f"plt.pie(df['{val_col}'], labels=df['{x_axis}'], autopct='%1.1f%%', startangle=90, counterclock=False)")
+                code_snippets.append(f"ax.pie(df['{val_col}'], labels=df['{x_axis}'], autopct='%1.1f%%', startangle=90, counterclock=False)")
                 
             elif chart_type == "箱ひげ図":
                 ax.boxplot([df[col].dropna() for col in y_axes], labels=y_axes)
-                code_snippets.append(f"plt.boxplot([df[col].dropna() for col in {y_axes}], labels={y_axes})")
+                code_snippets.append(f"ax.boxplot([df[col].dropna() for col in {y_axes}], labels={y_axes})")
                 
             elif chart_type == "バイオリンプロット":
                 parts = ax.violinplot([df[col].dropna() for col in y_axes], showmeans=True)
                 ax.set_xticks(range(1, len(y_axes) + 1))
                 ax.set_xticklabels(y_axes)
-                code_snippets.append(f"plt.violinplot([df[col].dropna() for col in {y_axes}], showmeans=True)")
+                code_snippets.append(f"ax.violinplot([df[col].dropna() for col in {y_axes}], showmeans=True)")
 
             # ラベル整形
             def fmt(n, u):
@@ -297,21 +297,21 @@ import japanize_matplotlib
 # データを読み込む
 df = pd.read_csv('data.csv')
 
-plt.figure(figsize=({width_val}, {height_val}))
+fig, ax = plt.subplots(figsize=({width_val}, {height_val}))
 
 {chr(10).join(code_snippets)}
 
-plt.title('{chart_title}', fontsize={font_title})
+ax.set_title('{chart_title}', fontsize={font_title})
 """
                 if chart_type != "円グラフ":
-                    full_code += f"plt.xlabel('{fmt(x_name, x_unit)}', fontsize={font_label})\n"
-                    full_code += f"plt.ylabel('{fmt(y_name, y_unit)}', fontsize={font_label})\n"
+                    full_code += f"ax.set_xlabel('{fmt(x_name, x_unit)}', fontsize={font_label})\n"
+                    full_code += f"ax.set_ylabel('{fmt(y_name, y_unit)}', fontsize={font_label})\n"
                 
-                full_code += f"plt.tick_params(labelsize={font_tick})\n"
+                full_code += f"ax.tick_params(labelsize={font_tick})\n"
                 if chart_type not in ["円グラフ", "箱ひげ図", "バイオリンプロット"]:
-                    full_code += "plt.grid(True)\n"
+                    full_code += "ax.grid(True)\n"
                 if len(y_axes) > 1:
-                    full_code += "plt.legend()\n"
+                    full_code += "ax.legend()\n"
                 full_code += "plt.show()"
                 
                 st.code(full_code, language='python')
@@ -326,11 +326,11 @@ else:
     
     # 使い方ガイド
     st.markdown("""
-    ### 🚀 使い方
+    ### 使い方
     1. **CSVファイルをアップロード**: 左側のパネルからデータを選択します。
     2. **グラフの種類を選択**: 折れ線グラフ、棒グラフ、ヒストグラムなどから選べます。
     3. **見た目の調整**: フォントサイズや線の太さを自分好みに調整できます。
-    4. **ダウンロード**: 「📁 画像をダウンロード」でレポートに貼れるPNGを保存できます。
+    4. **ダウンロード**: 「 画像をダウンロード」でレポートに貼れるPNGを保存できます。
     """)
     
     # サンプルデータ作成・DL機能
@@ -377,4 +377,4 @@ else:
             "グループ2": np.random.normal(60, 15, rows),
             "グループ3": np.random.normal(80, 5, rows)
         }).round(1)
-        st.download_button("📈 統計データのDL", stat_df.to_csv(index=False).encode('utf-8-sig'), "sample_stats.csv", "text/csv")
+        st.download_button("統計データのDL", stat_df.to_csv(index=False).encode('utf-8-sig'), "sample_stats.csv", "text/csv")
