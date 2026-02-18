@@ -494,7 +494,7 @@ if df is not None:
                 else:
                     ax.grid(False, which='minor')
 
-            if chart_type in ["折れ線グラフ", "散布図"]:
+            if chart_type in ["折れ線グラフ", "散布図", "棒グラフ", "複合グラフ", "ヒストグラム", "箱ひげ図", "バイオリンプロット"]:
                 if xmin_val is not None: ax.set_xlim(left=xmin_val)
                 if xmax_val is not None: ax.set_xlim(right=xmax_val)
                 if ymin_val is not None: ax.set_ylim(bottom=ymin_val)
@@ -575,7 +575,7 @@ ax.legend(lines_all, labels_all)
 
                 
                 # スケール設定をコードに追加
-                if chart_type in ["折れ線グラフ", "散布図"]:
+                if chart_type in ["折れ線グラフ", "散布図", "棒グラフ", "複合グラフ", "ヒストグラム", "箱ひげ図", "バイオリンプロット"]:
                     if xmin_val is not None: full_code += f"ax.set_xlim(left={xmin_val})\n"
                     if xmax_val is not None: full_code += f"ax.set_xlim(right={xmax_val})\n"
                     if ymin_val is not None: full_code += f"ax.set_ylim(bottom={ymin_val})\n"
