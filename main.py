@@ -126,9 +126,9 @@ with st.sidebar:
                         
                         # サイズ
                         if p_type == "Bar":
-                            p_size = c_siz.number_input("Width Scale", 0.1, 2.0, 1.0, key=f"size_{col}")
+                            p_size = c_siz.number_input("Width Scale", 0.1, 2.0, 1.0, step=0.1, key=f"size_{col}")
                         else:
-                            p_size = c_siz.number_input("Size", 1.0, 50.0, 8.0 if p_type == "Scatter" else 3.0, key=f"size_{col}")
+                            p_size = c_siz.number_input("Size", 1.0, 50.0, 8.0 if p_type == "Scatter" else 3.0, step=1.0, key=f"size_{col}")
                         
                         # 凡例表示
                         p_leg = c_leg.checkbox("Legend", value=True, key=f"leg_{col}")
@@ -153,12 +153,12 @@ with st.sidebar:
                         a_unit = c_u.text_input(f"Unit", key=f"aunit_{idx}")
                         
                         c_mi, c_ma = st.columns(2)
-                        a_min = c_mi.number_input(f"Min", value=None, key=f"amin_{idx}")
-                        a_max = c_ma.number_input(f"Max", value=None, key=f"amax_{idx}")
+                        a_min = c_mi.number_input(f"Min", value=None, step=1.0, key=f"amin_{idx}")
+                        a_max = c_ma.number_input(f"Max", value=None, step=1.0, key=f"amax_{idx}")
                         
                         c_fl, c_ft = st.columns(2)
-                        a_font_l = c_fl.number_input(f"Label Size", 10, 40, 18, key=f"afont_l_{idx}")
-                        a_font_t = c_ft.number_input(f"Tick Size", 8, 30, 14, key=f"afont_t_{idx}")
+                        a_font_l = c_fl.number_input(f"Label Size", 10, 40, 18, step=1, key=f"afont_l_{idx}")
+                        a_font_t = c_ft.number_input(f"Tick Size", 8, 30, 14, step=1, key=f"afont_t_{idx}")
                         
                         axis_configs[idx] = {"name": a_name, "unit": a_unit, "min": a_min, "max": a_max, "label_size": a_font_l, "tick_size": a_font_t}
             else:
@@ -197,18 +197,18 @@ with st.sidebar:
         
         st.subheader("Global Font Sizes")
         f1, f2, f3 = st.columns(3)
-        font_title = f1.number_input("Title Size", 10, 50, 24)
+        font_title = f1.number_input("Title Size", 10, 50, 24, step=1)
         # Label/Tick sizes are now primarily handled per-axis in Axis Settings
-        font_label_global = f2.number_input("Global Label Size", 10, 40, 18)
-        font_tick_global = f3.number_input("Global Tick Size", 8, 30, 14)
+        font_label_global = f2.number_input("Global Label Size", 10, 40, 18, step=1)
+        font_tick_global = f3.number_input("Global Tick Size", 8, 30, 14, step=1)
 
         # Global settings are now handled per-series
 
         st.divider()
         st.header("Graph Size")
         s1, s2 = st.columns(2)
-        width_val = s1.number_input("Width", 5.0, 30.0, 10.0)
-        height_val = s2.number_input("Height", 3.0, 30.0, 6.0)
+        width_val = s1.number_input("Width", 5.0, 30.0, 10.0, step=1.0)
+        height_val = s2.number_input("Height", 3.0, 30.0, 6.0, step=1.0)
         
         aspect_choice = st.selectbox("Aspect Ratio (Data)", ["auto", "equal", "custom"], index=0)
         aspect_val = None
@@ -222,21 +222,21 @@ with st.sidebar:
         st.divider()
         st.header("Scale Settings")
         c_sc1, c_sc2 = st.columns(2)
-        xmin_val = c_sc1.number_input("X Min (Auto if empty)", value=None)
-        xmax_val = c_sc2.number_input("X Max (Auto if empty)", value=None)
+        xmin_val = c_sc1.number_input("X Min (Auto if empty)", value=None, step=1.0)
+        xmax_val = c_sc2.number_input("X Max (Auto if empty)", value=None, step=1.0)
         
         c_sc3, c_sc4 = st.columns(2)
-        ymin_val = c_sc3.number_input("Y Min (Auto if empty)", value=None)
-        ymax_val = c_sc4.number_input("Y Max (Auto if empty)", value=None)
+        ymin_val = c_sc3.number_input("Y Min (Auto if empty)", value=None, step=1.0)
+        ymax_val = c_sc4.number_input("Y Max (Auto if empty)", value=None, step=1.0)
 
         st.divider()
         st.header("Tick & Grid Details")
         with st.expander("X-Axis Ticks"):
-            x_major_step = st.number_input("X Major Interval", value=None, key="x_maj")
-            x_minor_step = st.number_input("X Minor Interval", value=None, key="x_min")
+            x_major_step = st.number_input("X Major Interval", value=None, step=1.0, key="x_maj")
+            x_minor_step = st.number_input("X Minor Interval", value=None, step=1.0, key="x_min")
         with st.expander("Y-Axis Ticks"):
-            y_major_step = st.number_input("Y Major Interval", value=None, key="y_maj")
-            y_minor_step = st.number_input("Y Minor Interval", value=None, key="y_min")
+            y_major_step = st.number_input("Y Major Interval", value=None, step=1.0, key="y_maj")
+            y_minor_step = st.number_input("Y Minor Interval", value=None, step=1.0, key="y_min")
         with st.expander("Grid & Other"):
             grid_major = st.checkbox("Show Major Grid", value=True)
             grid_minor = st.checkbox("Show Minor Grid", value=False)
