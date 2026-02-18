@@ -126,9 +126,9 @@ with st.sidebar:
                         
                         # サイズ
                         if p_type == "Bar":
-                            p_size = c_siz.number_input("Width Scale", 0.1, 2.0, 1.0, step=0.1, key=f"size_{col}")
+                            p_size = c_siz.number_input("Width Scale", 0.1, 2.0, 1.0, step=0.1, format="%g", key=f"size_{col}")
                         else:
-                            p_size = c_siz.number_input("Size", 1.0, 50.0, 8.0 if p_type == "Scatter" else 3.0, step=1.0, key=f"size_{col}")
+                            p_size = c_siz.number_input("Size", 1.0, 50.0, 8.0 if p_type == "Scatter" else 3.0, step=1.0, format="%g", key=f"size_{col}")
                         
                         # 凡例表示
                         p_leg = c_leg.checkbox("Legend", value=True, key=f"leg_{col}")
@@ -153,8 +153,8 @@ with st.sidebar:
                         a_unit = c_u.text_input(f"Unit", key=f"aunit_{idx}")
                         
                         c_mi, c_ma = st.columns(2)
-                        a_min = c_mi.number_input(f"Min", value=None, step=1.0, key=f"amin_{idx}")
-                        a_max = c_ma.number_input(f"Max", value=None, step=1.0, key=f"amax_{idx}")
+                        a_min = c_mi.number_input(f"Min", value=None, step=1.0, format="%g", key=f"amin_{idx}")
+                        a_max = c_ma.number_input(f"Max", value=None, step=1.0, format="%g", key=f"amax_{idx}")
                         
                         c_fl, c_ft = st.columns(2)
                         a_font_l = c_fl.number_input(f"Label Size", 10, 40, 18, step=1, key=f"afont_l_{idx}")
@@ -207,13 +207,13 @@ with st.sidebar:
         st.divider()
         st.header("Graph Size")
         s1, s2 = st.columns(2)
-        width_val = s1.number_input("Width", 5.0, 30.0, 10.0, step=1.0)
-        height_val = s2.number_input("Height", 3.0, 30.0, 6.0, step=1.0)
+        width_val = s1.number_input("Width", 5.0, 30.0, 10.0, step=1.0, format="%g")
+        height_val = s2.number_input("Height", 3.0, 30.0, 6.0, step=1.0, format="%g")
         
         aspect_choice = st.selectbox("Aspect Ratio (Data)", ["auto", "equal", "custom"], index=0)
         aspect_val = None
         if aspect_choice == "custom":
-            aspect_val = st.number_input("Custom Ratio (Height/Width)", value=1.0, step=0.1)
+            aspect_val = st.number_input("Custom Ratio (Height/Width)", value=1.0, step=0.1, format="%g")
         elif aspect_choice == "equal":
             aspect_val = "equal"
         else:
@@ -222,21 +222,21 @@ with st.sidebar:
         st.divider()
         st.header("Scale Settings")
         c_sc1, c_sc2 = st.columns(2)
-        xmin_val = c_sc1.number_input("X Min (Auto if empty)", value=None, step=1.0)
-        xmax_val = c_sc2.number_input("X Max (Auto if empty)", value=None, step=1.0)
+        xmin_val = c_sc1.number_input("X Min (Auto if empty)", value=None, step=1.0, format="%g")
+        xmax_val = c_sc2.number_input("X Max (Auto if empty)", value=None, step=1.0, format="%g")
         
         c_sc3, c_sc4 = st.columns(2)
-        ymin_val = c_sc3.number_input("Y Min (Auto if empty)", value=None, step=1.0)
-        ymax_val = c_sc4.number_input("Y Max (Auto if empty)", value=None, step=1.0)
+        ymin_val = c_sc3.number_input("Y Min (Auto if empty)", value=None, step=1.0, format="%g")
+        ymax_val = c_sc4.number_input("Y Max (Auto if empty)", value=None, step=1.0, format="%g")
 
         st.divider()
         st.header("Tick & Grid Details")
         with st.expander("X-Axis Ticks"):
-            x_major_step = st.number_input("X Major Interval", value=None, step=1.0, key="x_maj")
-            x_minor_step = st.number_input("X Minor Interval", value=None, step=1.0, key="x_min")
+            x_major_step = st.number_input("X Major Interval", value=None, step=1.0, format="%g", key="x_maj")
+            x_minor_step = st.number_input("X Minor Interval", value=None, step=1.0, format="%g", key="x_min")
         with st.expander("Y-Axis Ticks"):
-            y_major_step = st.number_input("Y Major Interval", value=None, step=1.0, key="y_maj")
-            y_minor_step = st.number_input("Y Minor Interval", value=None, step=1.0, key="y_min")
+            y_major_step = st.number_input("Y Major Interval", value=None, step=1.0, format="%g", key="y_maj")
+            y_minor_step = st.number_input("Y Minor Interval", value=None, step=1.0, format="%g", key="y_min")
         with st.expander("Grid & Other"):
             grid_major = st.checkbox("Show Major Grid", value=True)
             grid_minor = st.checkbox("Show Minor Grid", value=False)
