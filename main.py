@@ -332,6 +332,9 @@ if df is not None:
                 # X軸が数値かどうかを判定
                 is_numeric_x = pd.api.types.is_numeric_dtype(plot_df[x_axis])
                 
+                # 軸の初期化
+                axes = {0: ax}
+                
                 # 座標の決定
                 if is_numeric_x and chart_type != "棒グラフ":
                     # 実数値ベース
@@ -353,8 +356,6 @@ if df is not None:
                         total_width = 0.8
                     width = total_width / len(bar_cols)
                 
-                # 軸の初期化
-                axes = {0: ax}
                 max_axis_idx = max(y_axis_mapping.values()) if y_axis_mapping else 0
                 for i in range(1, max_axis_idx+1):
                     new_ax = ax.twinx()
@@ -424,19 +425,23 @@ if df is not None:
                     if a_max is not None: code_snippets.append(f"{ax_prefix}.set_ylim(top={a_max})")
 
             elif chart_type == "ヒストグラム":
+                axes = {0: ax}
                 ax.hist([df[col].dropna() for col in y_axes], bins=20, label=y_axes, alpha=0.7)
                 code_snippets.append(f"ax.hist([df[col].dropna() for col in {y_axes}], bins=20, label={y_axes}, alpha=0.7)")
                 
             elif chart_type == "円グラフ":
+                axes = {0: ax}
                 val_col = y_axes[0]
                 ax.pie(plot_df[val_col], labels=plot_df[x_axis], autopct='%1.1f%%', startangle=90, counterclock=False)
                 code_snippets.append(f"ax.pie(plot_df['{val_col}'], labels=plot_df['{x_axis}'], autopct='%1.1f%%', startangle=90, counterclock=False)")
                 
             elif chart_type == "箱ひげ図":
+                axes = {0: ax}
                 ax.boxplot([df[col].dropna() for col in y_axes], labels=y_axes)
                 code_snippets.append(f"ax.boxplot([df[col].dropna() for col in {y_axes}], labels={y_axes})")
                 
             elif chart_type == "バイオリンプロット":
+                axes = {0: ax}
                 parts = ax.violinplot([df[col].dropna() for col in y_axes], showmeans=True)
                 ax.set_xticks(range(1, len(y_axes) + 1))
                 ax.set_xticklabels(y_axes)
