@@ -5,6 +5,7 @@ import japanize_matplotlib
 import io
 import json
 import numpy as np
+from matplotlib.ticker import MultipleLocator
 
 # --- デザイン：以前のカスタムCSSをStreamlitに注入 ---
 def local_css():
@@ -155,6 +156,18 @@ with st.sidebar:
         ymin_val = c_sc3.number_input("Y Min (Auto if empty)", value=None)
         ymax_val = c_sc4.number_input("Y Max (Auto if empty)", value=None)
 
+        st.divider()
+        st.header("Tick & Grid Details")
+        with st.expander("X-Axis Ticks"):
+            x_major_step = st.number_input("X Major Interval", value=None, key="x_maj")
+            x_minor_step = st.number_input("X Minor Interval", value=None, key="x_min")
+        with st.expander("Y-Axis Ticks"):
+            y_major_step = st.number_input("Y Major Interval", value=None, key="y_maj")
+            y_minor_step = st.number_input("Y Minor Interval", value=None, key="y_min")
+        with st.expander("Grid Style"):
+            grid_major = st.checkbox("Show Major Grid", value=True)
+            grid_minor = st.checkbox("Show Minor Grid", value=False)
+
 # --- メインエリア ---
 if df is not None:
     # データ情報の表示
@@ -279,9 +292,29 @@ if df is not None:
                 ax.legend()
                 
             ax.tick_params(labelsize=font_tick, colors='black')
-            if chart_type not in ["円グラフ", "箱ひげ図", "バイオリンプロット"]:
-                ax.grid(True, linestyle='--', alpha=0.3, color='gray')
             
+            # --- 目盛・グリッドの詳細設定適用 ---
+            if chart_type not in ["円グラフ", "ヒストグラム", "箱ひげ図", "バイオリンプロット"]:
+                # 目盛間隔
+                if x_major_step: ax.xaxis.set_major_locator(MultipleLocator(x_major_step))
+                if x_minor_step: ax.xaxis.set_minor_locator(MultipleLocator(x_minor_step))
+                if y_major_step: ax.yaxis.set_major_locator(MultipleLocator(y_major_step))
+                if y_minor_step: ax.yaxis.set_minor_locator(MultipleLocator(y_minor_step))
+                
+                # グリッド
+                if grid_major:
+                    ax.grid(True, which='major', linestyle='--', alpha=0.3, color='gray')
+                else:
+                    ax.grid(False, which='major')
+                if grid_minor:
+                    ax.grid(True, which='minor', linestyle=':', alpha=0.2, color='gray')
+                else:
+                    ax.grid(False, which='minor')
+                
+                # サブ目盛の線を表示（グリッドがなくても目盛線自体を出す場合のために）
+                if x_minor_step or y_minor_step or grid_minor:
+                    ax.minorticks_on()
+
             if chart_type in ["折れ線グラフ", "散布図"]:
                 if xmin_val is not None: ax.set_xlim(left=xmin_val)
                 if xmax_val is not None: ax.set_xlim(right=xmax_val)
@@ -316,8 +349,21 @@ ax.set_title('{chart_title}', fontsize={font_title})
                     full_code += f"ax.set_ylabel('{fmt(y_name, y_unit)}', fontsize={font_label})\n"
                 
                 full_code += f"ax.tick_params(labelsize={font_tick})\n"
-                if chart_type not in ["円グラフ", "箱ひげ図", "バイオリンプロット"]:
-                    full_code += "ax.grid(True)\n"
+                
+                # グリッドと目盛のコード生成
+                if chart_type not in ["円グラフ", "ヒストグラム", "箱ひげ図", "バイオリンプロット"]:
+                    full_code += "from matplotlib.ticker import MultipleLocator\n"
+                    if x_major_step: full_code += f"ax.xaxis.set_major_locator(MultipleLocator({x_major_step}))\n"
+                    if x_minor_step: full_code += f"ax.xaxis.set_minor_locator(MultipleLocator({x_minor_step}))\n"
+                    if y_major_step: full_code += f"ax.yaxis.set_major_locator(MultipleLocator({y_major_step}))\n"
+                    if y_minor_step: full_code += f"ax.yaxis.set_minor_locator(MultipleLocator({y_minor_step}))\n"
+                    
+                    if grid_major:
+                        full_code += "ax.grid(True, which='major', linestyle='--', alpha=0.3)\n"
+                    if grid_minor:
+                        full_code += "ax.minorticks_on()\n"
+                        full_code += "ax.grid(True, which='minor', linestyle=':', alpha=0.2)\n"
+
                 if len(y_axes) > 1:
                     full_code += "ax.legend()\n"
                 
