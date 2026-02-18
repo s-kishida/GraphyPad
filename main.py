@@ -97,7 +97,13 @@ with st.sidebar:
         # グラフの種類に応じて設定項目を変える
         if chart_type in ["折れ線グラフ", "散布図", "棒グラフ", "複合グラフ"]:
             x_axis = st.selectbox("X-Axis (横軸)", df.columns)
-            y_axes = st.multiselect("Y-Axis (縦軸: 複数選択可)", [c for c in df.columns if c != x_axis], default=[df.columns[1]] if len(df.columns) > 1 else [])
+            
+            # 数値列を優先的にリストアップ
+            numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c != x_axis]
+            other_cols = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c]) and c != x_axis]
+            selectable_y = numeric_cols + other_cols
+            
+            y_axes = st.multiselect("Y-Axis (縦軸: 複数選択可)", selectable_y, default=[numeric_cols[0]] if numeric_cols else [])
             
             # デフォルト配色
             default_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
@@ -159,7 +165,12 @@ with st.sidebar:
                 for col in y_axes: y_axis_mapping[col] = 0
         elif chart_type == "円グラフ":
             x_axis = st.selectbox("Labels (ラベルにする列)", df.columns)
-            y_axes = st.multiselect("Values (数値の列: 1つ選択)", [c for c in df.columns if c != x_axis], default=[df.columns[1]] if len(df.columns) > 1 else [], max_selections=1)
+            
+            numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c != x_axis]
+            other_cols = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c]) and c != x_axis]
+            selectable_y = numeric_cols + other_cols
+            
+            y_axes = st.multiselect("Values (数値の列: 1つ選択)", selectable_y, default=[numeric_cols[0]] if numeric_cols else [], max_selections=1)
         elif chart_type == "ヒストグラム":
             x_axis = None
             y_axes = st.multiselect("Data (対象の列: 複数選択可)", df.columns, default=[df.columns[0]])
@@ -303,22 +314,35 @@ if df is not None:
             if n and u: return f"{n} ({u})"
             return n if n else (f"({u})" if u else "")
         
+        # データの数値チェックと集計
+        plot_df = df.copy()
+        if y_axes and chart_type in ["折れ線グラフ", "散布図", "棒グラフ", "複合グラフ", "円グラフ"]:
+            for col in y_axes:
+                if not pd.api.types.is_numeric_dtype(df[col]):
+                    st.warning(f"⚠️ '{col}' は数値データではないため、正しく表示されない可能性があります。数値の列を選択してください。")
+            
+            # カテゴリカルなX軸で重複がある場合、値を合計するオプション（自動適用）
+            if x_axis and not pd.api.types.is_numeric_dtype(df[x_axis]):
+                if df[x_axis].duplicated().any():
+                    st.info(f"💡 '{x_axis}' に重複があるため、値を合計して表示します。")
+                    plot_df = df.groupby(x_axis, sort=False)[y_axes].sum().reset_index()
+        
         try:
             if chart_type in ["折れ線グラフ", "散布図", "棒グラフ", "複合グラフ"]:
                 # X軸が数値かどうかを判定
-                is_numeric_x = pd.api.types.is_numeric_dtype(df[x_axis])
+                is_numeric_x = pd.api.types.is_numeric_dtype(plot_df[x_axis])
                 
                 # 座標の決定
                 if is_numeric_x and chart_type != "棒グラフ":
-                    # 実数値ベース（折れ線、散布図、または複合でXが数値の場合）
-                    x_plot = df[x_axis].values
+                    # 実数値ベース
+                    x_plot = plot_df[x_axis].values
                     use_index_x = False
                 else:
-                    # カテゴリベース（棒グラフ単体、またはXが数値でない場合）
-                    x_plot = np.arange(len(df))
+                    # カテゴリベース
+                    x_plot = np.arange(len(plot_df))
                     use_index_x = True
                 
-                bar_cols = [c for c, t in y_configs.items() if t == "Bar"]
+                bar_cols = [c for c, conf in y_configs.items() if conf.get("type") == "Bar"]
                 if bar_cols:
                     if not use_index_x and len(df) > 1:
                         # 数値軸の場合、データの最小間隔に合わせて棒の幅を計算
@@ -354,26 +378,26 @@ if df is not None:
                     ax_prefix = f"ax{a_idx}" if a_idx > 0 else "ax"
                     
                     if p_type == "Line":
-                        target_ax.plot(x_plot, df[col], marker='o', color=p_color, linewidth=p_size, markersize=p_size*2, label=p_label)
-                        code_snippets.append(f"{ax_prefix}.plot(x_plot, df['{col}'], marker='o', color='{p_color}', linewidth={p_size}, markersize={p_size*2}, label='{p_label}')")
+                        target_ax.plot(x_plot, plot_df[col], marker='o', color=p_color, linewidth=p_size, markersize=p_size*2, label=p_label)
+                        code_snippets.append(f"{ax_prefix}.plot(x_plot, plot_df['{col}'], marker='o', color='{p_color}', linewidth={p_size}, markersize={p_size*2}, label='{p_label}')")
                     elif p_type == "Scatter":
-                        target_ax.scatter(x_plot, df[col], s=p_size*10, color=p_color, label=p_label, alpha=0.7)
-                        code_snippets.append(f"{ax_prefix}.scatter(x_plot, df['{col}'], s={p_size*10}, color='{p_color}', label='{p_label}', alpha=0.7)")
+                        target_ax.scatter(x_plot, plot_df[col], s=p_size*10, color=p_color, label=p_label, alpha=0.7)
+                        code_snippets.append(f"{ax_prefix}.scatter(x_plot, plot_df['{col}'], s={p_size*10}, color='{p_color}', label='{p_label}', alpha=0.7)")
                     elif p_type == "Bar":
                         current_width = width * p_size
                         if len(bar_cols) > 0:
                             offset = (bar_count - len(bar_cols)/2 + 0.5) * width
-                            target_ax.bar(x_plot + offset, df[col], current_width, color=p_color, label=p_label)
-                            code_snippets.append(f"{ax_prefix}.bar(x_plot + {offset}, df['{col}'], {current_width}, color='{p_color}', label='{p_label}')")
+                            target_ax.bar(x_plot + offset, plot_df[col], current_width, color=p_color, label=p_label)
+                            code_snippets.append(f"{ax_prefix}.bar(x_plot + {offset}, plot_df['{col}'], {current_width}, color='{p_color}', label='{p_label}')")
                             bar_count += 1
                         else:
-                            target_ax.bar(x_plot, df[col], width=current_width, color=p_color, label=p_label)
-                            code_snippets.append(f"{ax_prefix}.bar(x_plot, df['{col}'], width={current_width}, color='{p_color}', label='{p_label}')")
+                            target_ax.bar(x_plot, plot_df[col], width=current_width, color=p_color, label=p_label)
+                            code_snippets.append(f"{ax_prefix}.bar(x_plot, plot_df['{col}'], width={current_width}, color='{p_color}', label='{p_label}')")
                 
                 if use_index_x:
                     ax.set_xticks(x_plot)
-                    ax.set_xticklabels(df[x_axis])
-                    code_snippets.insert(0, f"ax.set_xticks(x_plot)\nax.set_xticklabels(df['{x_axis}'])")
+                    ax.set_xticklabels(plot_df[x_axis])
+                    code_snippets.insert(0, f"ax.set_xticks(x_plot)\nax.set_xticklabels(plot_df['{x_axis}'])")
                 
                 code_snippets.insert(0, f"import numpy as np\nx_plot = ... # values or arange\n")
 
@@ -405,8 +429,8 @@ if df is not None:
                 
             elif chart_type == "円グラフ":
                 val_col = y_axes[0]
-                ax.pie(df[val_col], labels=df[x_axis], autopct='%1.1f%%', startangle=90, counterclock=False)
-                code_snippets.append(f"ax.pie(df['{val_col}'], labels=df['{x_axis}'], autopct='%1.1f%%', startangle=90, counterclock=False)")
+                ax.pie(plot_df[val_col], labels=plot_df[x_axis], autopct='%1.1f%%', startangle=90, counterclock=False)
+                code_snippets.append(f"ax.pie(plot_df['{val_col}'], labels=plot_df['{x_axis}'], autopct='%1.1f%%', startangle=90, counterclock=False)")
                 
             elif chart_type == "箱ひげ図":
                 ax.boxplot([df[col].dropna() for col in y_axes], labels=y_axes)
@@ -481,12 +505,26 @@ if df is not None:
             cx1.download_button("📁 画像をダウンロード", buf.getvalue(), f"graph.png", "image/png")
             
             with st.expander("Python Code"):
+                # データの集計ロジックをコードにも追加
+                agg_snippet = ""
+                if x_axis and chart_type in ["折れ線グラフ", "散布図", "棒グラフ", "複合グラフ", "円グラフ"] and not pd.api.types.is_numeric_dtype(df[x_axis]):
+                    if df[x_axis].duplicated().any():
+                        agg_snippet = f"plot_df = df.groupby('{x_axis}', sort=False)[{y_axes}].sum().reset_index()"
+                    else:
+                        agg_snippet = "plot_df = df.copy()"
+                else:
+                    agg_snippet = "plot_df = df.copy()"
+
                 full_code = f"""import pandas as pd
 import matplotlib.pyplot as plt
 import japanize_matplotlib
+import numpy as np
 
 # データを読み込む
 df = pd.read_csv('data.csv')
+
+# 集計 (カテゴリカルなX軸で重複がある場合)
+{agg_snippet}
 
 fig, ax = plt.subplots(figsize=({width_val}, {height_val}))
 
@@ -529,8 +567,6 @@ ax.legend(lines_all, labels_all)
                     
                     full_code += f"ax.tick_params(which='both', direction='{tick_dir}')\n"
 
-                if len(y_axes) > 1:
-                    full_code += "ax.legend()\n"
                 
                 # スケール設定をコードに追加
                 if chart_type in ["折れ線グラフ", "散布図"]:
