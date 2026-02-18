@@ -298,32 +298,38 @@ else:
     with col_s1:
         st.write("**実験・変化データ**")
         st.caption("折れ線グラフ・散布図向き")
+        # 120行の時系列データ
+        rows = 120
         exp_df = pd.DataFrame({
-            "時間(s)": [0, 10, 20, 30, 40, 50, 60],
-            "温度A(℃)": [20.1, 25.4, 32.8, 41.2, 48.5, 53.2, 58.1],
-            "温度B(℃)": [19.8, 22.1, 26.5, 30.2, 33.8, 38.1, 42.4]
+            "時間(s)": np.arange(rows) * 5,
+            "温度A(℃)": (20 + np.cumsum(np.random.normal(0.3, 0.5, rows))).round(1),
+            "温度B(℃)": (18 + np.cumsum(np.random.normal(0.2, 0.4, rows))).round(1)
         })
         st.download_button("🌡️ 実験データのDL", exp_df.to_csv(index=False).encode('utf-8-sig'), "sample_experiment.csv", "text/csv")
 
     with col_s2:
         st.write("**分類・割合データ**")
         st.caption("棒グラフ・円グラフ向き")
+        # 120行の記録データ（項目を繰り返して日付風に）
+        items = ["食費", "光熱費", "通信費", "遊び", "その他"]
+        rows = 120
         cat_df = pd.DataFrame({
-            "項目": ["食費", "光熱費", "通信費", "遊び", "その他"],
-            "クラスA(%)": [35, 15, 10, 25, 15],
-            "クラスB(%)": [30, 20, 15, 20, 15]
+            "通番": np.arange(1, rows + 1),
+            "項目": [items[i % len(items)] for i in range(rows)],
+            "金額(円)": np.random.randint(100, 5000, rows),
+            "満足度": np.random.randint(1, 6, rows)
         })
         st.download_button("📊 分類データのDL", cat_df.to_csv(index=False).encode('utf-8-sig'), "sample_category.csv", "text/csv")
 
     with col_s3:
         st.write("**分布・統計データ**")
         st.caption("ヒスト（箱・バイオリン）向き")
-        # 統計用のダミーデータ生成
-        import numpy as np
+        # 120行の統計用データ
+        rows = 120
         np.random.seed(42)
         stat_df = pd.DataFrame({
-            "グループ1": np.random.normal(70, 10, 100),
-            "グループ2": np.random.normal(60, 15, 100),
-            "グループ3": np.random.normal(80, 5, 100)
+            "グループ1": np.random.normal(70, 10, rows),
+            "グループ2": np.random.normal(60, 15, rows),
+            "グループ3": np.random.normal(80, 5, rows)
         }).round(1)
         st.download_button("📈 統計データのDL", stat_df.to_csv(index=False).encode('utf-8-sig'), "sample_stats.csv", "text/csv")
