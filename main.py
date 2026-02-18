@@ -99,17 +99,33 @@ with st.sidebar:
             x_axis = st.selectbox("X-Axis (横軸)", df.columns)
             y_axes = st.multiselect("Y-Axis (縦軸: 複数選択可)", [c for c in df.columns if c != x_axis], default=[df.columns[1]] if len(df.columns) > 1 else [])
             
-            y_configs = {}
-            if chart_type == "複合グラフ" and y_axes:
-                st.caption("各列のプロット形式:")
-                for col in y_axes:
-                    y_configs[col] = st.selectbox(f"{col}", ["Line", "Scatter", "Bar"], key=f"type_{col}")
-            else:
-                # 複合以外の時はデフォルトの型を適用
-                base_type = "Line" if chart_type == "折れ線グラフ" else ("Scatter" if chart_type == "散布図" else "Bar")
-                for col in y_axes:
-                    y_configs[col] = base_type
+            # デフォルト配色
+            default_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
             
+            y_configs = {}
+            if y_axes:
+                with st.expander("Series Settings (個別の設定)", expanded=True):
+                    for i, col in enumerate(y_axes):
+                        st.write(f"**{col}**")
+                        c_typ, c_col, c_siz = st.columns([2, 1, 1])
+                        
+                        # プロットの種類
+                        if chart_type == "複合グラフ":
+                            p_type = c_typ.selectbox("Type", ["Line", "Scatter", "Bar"], key=f"type_{col}")
+                        else:
+                            p_type = "Line" if chart_type == "折れ線グラフ" else ("Scatter" if chart_type == "散布図" else "Bar")
+                        
+                        # 色
+                        p_color = c_col.color_picker("Color", default_colors[i % len(default_colors)], key=f"color_{col}")
+                        
+                        # サイズ
+                        if p_type == "Bar":
+                            p_size = c_siz.number_input("Width Scale", 0.1, 2.0, 1.0, key=f"size_{col}")
+                        else:
+                            p_size = c_siz.number_input("Size", 1.0, 50.0, 8.0 if p_type == "Scatter" else 3.0, key=f"size_{col}")
+                        
+                        y_configs[col] = {"type": p_type, "color": p_color, "size": p_size}
+
             y_axis_mapping = {}
             if y_axes and chart_type != "円グラフ":
                 with st.expander("Axis Settings (軸の割り当て)", expanded=False):
@@ -166,11 +182,7 @@ with st.sidebar:
         font_label = f2.number_input("Label", 10, 40, 18)
         font_tick = f3.number_input("Tick", 8, 30, 14)
 
-        st.divider()
-        st.header("Plot Settings")
-        p1, p2 = st.columns(2)
-        marker_size = p1.number_input("Marker Size", 1.0, 50.0, 8.0)
-        line_width = p2.number_input("Line/Bar Width", 0.1, 10.0, 1.5 if chart_type == "棒グラフ" else 3.0)
+        # Global settings are now handled per-series
 
         st.divider()
         st.header("Graph Size")
@@ -322,26 +334,31 @@ if df is not None:
 
                 bar_count = 0
                 for col in y_axes:
-                    p_type = y_configs[col]
+                    conf = y_configs[col]
+                    p_type = conf["type"]
+                    p_color = conf["color"]
+                    p_size = conf["size"]
+                    
                     a_idx = y_axis_mapping.get(col, 0)
                     target_ax = axes[a_idx]
                     ax_prefix = f"ax{a_idx}" if a_idx > 0 else "ax"
                     
                     if p_type == "Line":
-                        target_ax.plot(x_plot, df[col], marker='o', linewidth=line_width, markersize=marker_size, label=col)
-                        code_snippets.append(f"{ax_prefix}.plot(x_plot, df['{col}'], marker='o', linewidth={line_width}, markersize={marker_size}, label='{col}')")
+                        target_ax.plot(x_plot, df[col], marker='o', color=p_color, linewidth=p_size, markersize=p_size*2, label=col)
+                        code_snippets.append(f"{ax_prefix}.plot(x_plot, df['{col}'], marker='o', color='{p_color}', linewidth={p_size}, markersize={p_size*2}, label='{col}')")
                     elif p_type == "Scatter":
-                        target_ax.scatter(x_plot, df[col], s=marker_size*10, label=col, alpha=0.7)
-                        code_snippets.append(f"{ax_prefix}.scatter(x_plot, df['{col}'], s={marker_size*10}, label='{col}', alpha=0.7)")
+                        target_ax.scatter(x_plot, df[col], s=p_size*10, color=p_color, label=col, alpha=0.7)
+                        code_snippets.append(f"{ax_prefix}.scatter(x_plot, df['{col}'], s={p_size*10}, color='{p_color}', label='{col}', alpha=0.7)")
                     elif p_type == "Bar":
+                        current_width = width * p_size
                         if len(bar_cols) > 0:
                             offset = (bar_count - len(bar_cols)/2 + 0.5) * width
-                            target_ax.bar(x_plot + offset, df[col], width, label=col)
-                            code_snippets.append(f"{ax_prefix}.bar(x_plot + {offset}, df['{col}'], {width}, label='{col}')")
+                            target_ax.bar(x_plot + offset, df[col], current_width, color=p_color, label=col)
+                            code_snippets.append(f"{ax_prefix}.bar(x_plot + {offset}, df['{col}'], {current_width}, color='{p_color}', label='{col}')")
                             bar_count += 1
                         else:
-                            target_ax.bar(x_plot, df[col], label=col)
-                            code_snippets.append(f"{ax_prefix}.bar(x_plot, df['{col}'], label='{col}')")
+                            target_ax.bar(x_plot, df[col], width=current_width, color=p_color, label=col)
+                            code_snippets.append(f"{ax_prefix}.bar(x_plot, df['{col}'], width={current_width}, color='{p_color}', label='{col}')")
                 
                 if use_index_x:
                     ax.set_xticks(x_plot)
