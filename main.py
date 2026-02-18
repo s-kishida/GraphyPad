@@ -138,6 +138,21 @@ with st.sidebar:
 
 # --- メインエリア ---
 if df is not None:
+    # データ情報の表示
+    with st.expander("📊 アップロードされたデータの詳細を確認", expanded=False):
+        st.subheader("データ概要")
+        # 各列の情報をまとめる
+        info_df = pd.DataFrame({
+            "列名": df.columns,
+            "データ型": [str(t) for t in df.dtypes],
+            "有効データ数": df.count().values,
+            "欠損数": df.isnull().sum().values
+        })
+        st.table(info_df)
+        
+        st.subheader("データの数値参照")
+        st.dataframe(df, use_container_width=True)
+    
     if not y_axes:
         st.info("👈 サイドバーで描画するデータを選択してください。")
     else:
