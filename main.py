@@ -164,9 +164,10 @@ with st.sidebar:
         with st.expander("Y-Axis Ticks"):
             y_major_step = st.number_input("Y Major Interval", value=None, key="y_maj")
             y_minor_step = st.number_input("Y Minor Interval", value=None, key="y_min")
-        with st.expander("Grid Style"):
+        with st.expander("Grid & Other"):
             grid_major = st.checkbox("Show Major Grid", value=True)
             grid_minor = st.checkbox("Show Minor Grid", value=False)
+            tick_dir = st.selectbox("Tick Direction (目盛の向き)", ["in", "out", "inout"], index=0)
 
 # --- メインエリア ---
 if df is not None:
@@ -305,9 +306,9 @@ if df is not None:
                 if y_major_step: ax.yaxis.set_major_locator(MultipleLocator(y_major_step))
                 if y_minor_step: ax.yaxis.set_minor_locator(MultipleLocator(y_minor_step))
                 
-                # 目盛自体の見た目調整（補助目盛が見えやすいように少し長くする）
-                ax.tick_params(which='major', labelsize=font_tick, colors='black', length=6)
-                ax.tick_params(which='minor', colors='black', length=3)
+                # 目盛自体の見た目調整
+                ax.tick_params(which='major', labelsize=font_tick, colors='black', length=6, direction=tick_dir)
+                ax.tick_params(which='minor', colors='black', length=3, direction=tick_dir)
                 
                 # グリッド
                 if grid_major:
@@ -367,6 +368,8 @@ ax.set_title('{chart_title}', fontsize={font_title})
                     if grid_minor:
                         full_code += "ax.minorticks_on()\n"
                         full_code += "ax.grid(True, which='minor', linestyle=':', alpha=0.2)\n"
+                    
+                    full_code += f"ax.tick_params(which='both', direction='{tick_dir}')\n"
 
                 if len(y_axes) > 1:
                     full_code += "ax.legend()\n"
