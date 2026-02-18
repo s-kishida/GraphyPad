@@ -145,6 +145,15 @@ with st.sidebar:
         s1, s2 = st.columns(2)
         width_val = s1.number_input("Width", 5.0, 30.0, 10.0)
         height_val = s2.number_input("Height", 3.0, 30.0, 6.0)
+        
+        aspect_choice = st.selectbox("Aspect Ratio (Data)", ["auto", "equal", "custom"], index=0)
+        aspect_val = None
+        if aspect_choice == "custom":
+            aspect_val = st.number_input("Custom Ratio (Height/Width)", value=1.0, step=0.1)
+        elif aspect_choice == "equal":
+            aspect_val = "equal"
+        else:
+            aspect_val = "auto"
 
         st.divider()
         st.header("Scale Settings")
@@ -325,6 +334,7 @@ if df is not None:
                 if xmax_val is not None: ax.set_xlim(right=xmax_val)
                 if ymin_val is not None: ax.set_ylim(bottom=ymin_val)
                 if ymax_val is not None: ax.set_ylim(top=ymax_val)
+                ax.set_aspect(aspect_val)
             
             # 表示
             st.pyplot(fig)
@@ -380,6 +390,9 @@ ax.set_title('{chart_title}', fontsize={font_title})
                     if xmax_val is not None: full_code += f"ax.set_xlim(right={xmax_val})\n"
                     if ymin_val is not None: full_code += f"ax.set_ylim(bottom={ymin_val})\n"
                     if ymax_val is not None: full_code += f"ax.set_ylim(top={ymax_val})\n"
+                    if aspect_val != 'auto':
+                        val_str = f"'{aspect_val}'" if isinstance(aspect_val, str) else aspect_val
+                        full_code += f"ax.set_aspect({val_str})\n"
 
                 full_code += "plt.show()"
                 
