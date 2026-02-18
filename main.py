@@ -47,6 +47,20 @@ def local_css():
         .stMarkdown p {
             font-size: 0.95rem;
         }
+        /* Google風ページネーション用スタイル */
+        .page-num-row button {
+            background: none !important;
+            border: none !important;
+            color: #8ab4f8 !important;
+            padding: 0 !important;
+            min-height: 24px !important;
+            line-height: 1.5 !important;
+            font-weight: normal !important;
+        }
+        .page-num-row button:hover {
+            text-decoration: underline !important;
+            color: #d1d5da !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -150,12 +164,53 @@ if df is not None:
         })
         st.table(info_df)
         
-        st.subheader("データの数値参照 (50行ずつ表示)")
+        st.subheader("データの数値参照")
         total_rows = len(df)
         if total_rows > 50:
             page_size = 50
             num_pages = (total_rows - 1) // page_size + 1
-            page_num = st.slider("表示する行の範囲を選択", 1, num_pages, 1)
+            
+            # セッション状態でのページ管理
+            if "page_num" not in st.session_state:
+                st.session_state.page_num = 1
+            
+            # --- Googleロゴの動的生成 ---
+            logo_html = "<div style='text-align: center; font-family: serif; font-size: 48px; font-weight: bold; margin: 10px 0 0 0; line-height: 1;'>"
+            logo_html += "<span style='color: white;'>G</span>"
+            for i in range(1, num_pages + 1):
+                # 現在のページは青、それ以外は白（またはGoogleカラーも可ですが画像に合わせて白主体で）
+                o_color = "#4285F4" if i == st.session_state.page_num else "white"
+                logo_html += f"<span style='color: {o_color};'>o</span>"
+            logo_html += "<span style='color: white;'>gle</span></div>"
+            st.markdown(logo_html, unsafe_allow_html=True)
+            
+            # --- ページ番号と「次へ」の配置 ---
+            cols_spec = [1] * num_pages + [2, 10]
+            p_cols = st.columns(cols_spec)
+            
+            for i in range(1, num_pages + 1):
+                with p_cols[i-1]:
+                    st.markdown("<div class='page-num-row'>", unsafe_allow_html=True)
+                    if i == st.session_state.page_num:
+                        # 現在のページは数字のみ（リンクにしない）
+                        st.markdown(f"<div style='text-align:center; color:white; font-size:18px; font-weight:bold; margin-top:5px;'>{i}</div>", unsafe_allow_html=True)
+                    else:
+                        if st.button(str(i), key=f"pg_{i}"):
+                            st.session_state.page_num = i
+                            st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
+            
+            # 「次へ」ボタン
+            with p_cols[num_pages]:
+                st.markdown("<div class='page-num-row'>", unsafe_allow_html=True)
+                if st.session_state.page_num < num_pages:
+                    if st.button("次へ >", key="pg_next"):
+                        st.session_state.page_num += 1
+                        st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+            # 指定範囲のデータを表示
+            page_num = st.session_state.page_num
             start_idx = (page_num - 1) * page_size
             end_idx = min(start_idx + page_size, total_rows)
             st.caption(f"{total_rows}行中 {start_idx + 1} 〜 {end_idx} 行目を表示しています")
