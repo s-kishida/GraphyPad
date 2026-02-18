@@ -147,8 +147,13 @@ with st.sidebar:
 
         st.divider()
         st.header("Scale Settings")
-        xmin_val = st.number_input("X Min (Auto if empty)", value=None)
-        xmax_val = st.number_input("X Max (Auto if empty)", value=None)
+        c_sc1, c_sc2 = st.columns(2)
+        xmin_val = c_sc1.number_input("X Min (Auto if empty)", value=None)
+        xmax_val = c_sc2.number_input("X Max (Auto if empty)", value=None)
+        
+        c_sc3, c_sc4 = st.columns(2)
+        ymin_val = c_sc3.number_input("Y Min (Auto if empty)", value=None)
+        ymax_val = c_sc4.number_input("Y Max (Auto if empty)", value=None)
 
 # --- メインエリア ---
 if df is not None:
@@ -277,8 +282,11 @@ if df is not None:
             if chart_type not in ["円グラフ", "箱ひげ図", "バイオリンプロット"]:
                 ax.grid(True, linestyle='--', alpha=0.3, color='gray')
             
-            if chart_type in ["折れ線グラフ", "散布図"] and xmin_val is not None and xmax_val is not None:
-                ax.set_xlim(xmin_val, xmax_val)
+            if chart_type in ["折れ線グラフ", "散布図"]:
+                if xmin_val is not None: ax.set_xlim(left=xmin_val)
+                if xmax_val is not None: ax.set_xlim(right=xmax_val)
+                if ymin_val is not None: ax.set_ylim(bottom=ymin_val)
+                if ymax_val is not None: ax.set_ylim(top=ymax_val)
             
             # 表示
             st.pyplot(fig)
@@ -312,6 +320,14 @@ ax.set_title('{chart_title}', fontsize={font_title})
                     full_code += "ax.grid(True)\n"
                 if len(y_axes) > 1:
                     full_code += "ax.legend()\n"
+                
+                # スケール設定をコードに追加
+                if chart_type in ["折れ線グラフ", "散布図"]:
+                    if xmin_val is not None: full_code += f"ax.set_xlim(left={xmin_val})\n"
+                    if xmax_val is not None: full_code += f"ax.set_xlim(right={xmax_val})\n"
+                    if ymin_val is not None: full_code += f"ax.set_ylim(bottom={ymin_val})\n"
+                    if ymax_val is not None: full_code += f"ax.set_ylim(top={ymax_val})\n"
+
                 full_code += "plt.show()"
                 
                 st.code(full_code, language='python')
