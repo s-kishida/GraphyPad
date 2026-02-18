@@ -109,6 +109,14 @@ with st.sidebar:
                 base_type = "Line" if chart_type == "折れ線グラフ" else ("Scatter" if chart_type == "散布図" else "Bar")
                 for col in y_axes:
                     y_configs[col] = base_type
+            
+            y_axis_mapping = {}
+            if y_axes and chart_type != "円グラフ":
+                with st.expander("Axis Settings (軸の割り当て)", expanded=False):
+                    for col in y_axes:
+                        y_axis_mapping[col] = st.number_input(f"Axis for {col} (0:左, 1:右, 2+:右オフセット)", 0, 5, 0, key=f"axis_{col}")
+            else:
+                for col in y_axes: y_axis_mapping[col] = 0
         elif chart_type == "円グラフ":
             x_axis = st.selectbox("Labels (ラベルにする列)", df.columns)
             y_axes = st.multiselect("Values (数値の列: 1つ選択)", [c for c in df.columns if c != x_axis], default=[df.columns[1]] if len(df.columns) > 1 else [], max_selections=1)
@@ -136,8 +144,21 @@ with st.sidebar:
         x_unit = c2.text_input("X Unit", placeholder="s, m, etc.")
         
         c3, c4 = st.columns(2)
-        y_name = c3.text_input("Y Name", value=y_axes[0] if y_axes else "")
-        y_unit = c4.text_input("Y Unit", placeholder="N, kg, etc.")
+        y_name = c3.text_input("Y Name (Axis 0)", value=y_axes[0] if y_axes else "")
+        y_unit = c4.text_input("Y Unit (Axis 0)", placeholder="N, kg, etc.")
+        
+        # 追加軸のラベル設定
+        used_axes = set(y_axis_mapping.values()) if y_axis_mapping else {0}
+        other_labels = {}
+        if any(idx > 0 for idx in used_axes):
+            with st.expander("Additional Axis Labels", expanded=False):
+                for idx in sorted(list(used_axes)):
+                    if idx == 0: continue
+                    la1, la2 = st.columns(2)
+                    other_labels[idx] = {
+                        "name": la1.text_input(f"Axis {idx} Name", value="", key=f"y_name_{idx}"),
+                        "unit": la2.text_input(f"Axis {idx} Unit", value="", key=f"y_unit_{idx}")
+                    }
         
         st.subheader("Font Sizes")
         f1, f2, f3 = st.columns(3)
@@ -261,31 +282,57 @@ if df is not None:
                 bar_cols = [c for c, t in y_configs.items() if t == "Bar"]
                 if bar_cols:
                     x_indices = np.arange(len(df[x_axis]))
-                    width = 0.8 / len(bar_cols) if chart_type == "棒グラフ" or chart_type == "複合グラフ" else 0.8
-                
+                    width = 0.8 / len(bar_cols) if chart_type in ["棒グラフ", "複合グラフ"] else 0.8
+
+                # 軸の初期化
+                axes = {0: ax}
+                max_axis_idx = max(y_axis_mapping.values()) if y_axis_mapping else 0
+                for i in range(1, max_axis_idx + 1):
+                    new_ax = ax.twinx()
+                    if i > 1:
+                        # 2つ目以降の右軸はオフセットさせる
+                        new_ax.spines["right"].set_position(("axes", 1.0 + (i-1)*0.15))
+                    axes[i] = new_ax
+                    code_snippets.append(f"ax{i} = ax.twinx()")
+                    if i > 1:
+                        code_snippets.append(f"ax{i}.spines['right'].set_position(('axes', {1.0 + (i-1)*0.15}))")
+
                 bar_count = 0
                 for col in y_axes:
                     p_type = y_configs[col]
+                    a_idx = y_axis_mapping.get(col, 0)
+                    target_ax = axes[a_idx]
+                    ax_prefix = f"ax{a_idx}" if a_idx > 0 else "ax"
+                    
                     if p_type == "Line":
-                        ax.plot(df[x_axis], df[col], marker='o', linewidth=line_width, markersize=marker_size, label=col)
-                        code_snippets.append(f"ax.plot(df['{x_axis}'], df['{col}'], marker='o', linewidth={line_width}, markersize={marker_size}, label='{col}')")
+                        target_ax.plot(df[x_axis], df[col], marker='o', linewidth=line_width, markersize=marker_size, label=col)
+                        code_snippets.append(f"{ax_prefix}.plot(df['{x_axis}'], df['{col}'], marker='o', linewidth={line_width}, markersize={marker_size}, label='{col}')")
                     elif p_type == "Scatter":
-                        ax.scatter(df[x_axis], df[col], s=marker_size*10, label=col, alpha=0.7)
-                        code_snippets.append(f"ax.scatter(df['{x_axis}'], df['{col}'], s={marker_size*10}, label='{col}', alpha=0.7)")
+                        target_ax.scatter(df[x_axis], df[col], s=marker_size*10, label=col, alpha=0.7)
+                        code_snippets.append(f"{ax_prefix}.scatter(df['{x_axis}'], df['{col}'], s={marker_size*10}, label='{col}', alpha=0.7)")
                     elif p_type == "Bar":
                         if chart_type in ["棒グラフ", "複合グラフ"] and len(bar_cols) > 0:
                             offset = (bar_count - len(bar_cols)/2 + 0.5) * width
-                            ax.bar(x_indices + offset, df[col], width, label=col)
-                            code_snippets.append(f"ax.bar(x_indices + {offset}, df['{col}'], {width}, label='{col}')")
+                            target_ax.bar(x_indices + offset, df[col], width, label=col)
+                            code_snippets.append(f"{ax_prefix}.bar(x_indices + {offset}, df['{col}'], {width}, label='{col}')")
                             bar_count += 1
                         else:
-                            ax.bar(df[x_axis], df[col], label=col)
-                            code_snippets.append(f"ax.bar(df['{x_axis}'], df['{col}'], label='{col}')")
+                            target_ax.bar(df[x_axis], df[col], label=col)
+                            code_snippets.append(f"{ax_prefix}.bar(df['{x_axis}'], df['{col}'], label='{col}')")
                 
                 if bar_cols:
                     ax.set_xticks(x_indices)
                     ax.set_xticklabels(df[x_axis])
                     code_snippets.insert(0, f"import numpy as np\nx_indices = np.arange(len(df['{x_axis}']))\nwidth = 0.8 / {len(bar_cols) if len(bar_cols)>0 else 1}")
+
+                # 各軸のラベル設定
+                for i, target_ax in axes.items():
+                    if i == 0:
+                        target_ax.set_ylabel(fmt(y_name, y_unit) or (y_axes[0] if len(y_axes)==1 else ""), fontsize=font_label, color='black')
+                    else:
+                        label_info = other_labels.get(i, {"name": "", "unit": ""})
+                        target_ax.set_ylabel(fmt(label_info["name"], label_info["unit"]), fontsize=font_label, color='black')
+                        code_snippets.append(f"ax{i}.set_ylabel('{fmt(label_info['name'], label_info['unit'])}', fontsize={font_label})")
 
             elif chart_type == "ヒストグラム":
                 ax.hist([df[col].dropna() for col in y_axes], bins=20, label=y_axes, alpha=0.7)
